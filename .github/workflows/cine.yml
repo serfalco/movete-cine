@@ -1,1 +1,38 @@
+name: MoVeTe Cine semanal
 
+# Jueves 7:00 Argentina (UTC-3) = jueves 10:00 UTC
+# Además se puede disparar a mano desde la pestaña Actions.
+on:
+  schedule:
+    - cron: "0 10 * * 4"
+  workflow_dispatch:
+
+jobs:
+  generar-y-publicar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Traer el repo
+        uses: actions/checkout@v4
+
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Generar la cartelera de la semana
+        run: python main.py
+
+      - name: Subir a Hostinger por FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USER }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          # Solo subimos la carpeta cine/ generada
+          local-dir: ./cine/
+          server-dir: ${{ secrets.FTP_REMOTE_CINE }}
+          # No borrar nada del servidor: las páginas viejas se conservan (archivo SEO)
+          dangerous-clean-slate: false
