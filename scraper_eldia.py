@@ -126,56 +126,142 @@ def _parsear_pelicula(linea):
 
 
 def parsear_cartelera(texto_plano):
-    """Recibe el texto de la guía (líneas) y arma la estructura de complejos."""
+    """Parsea la cartelera. Acepta tanto texto con saltos de línea (cuerpo)
+    como texto corrido de una sola tirada (meta description de El Día).
+
+    Estrategia: trabajar sobre texto corrido. Primero ubicar cada complejo
+    (NOMBRE + '(...dirección/teléfono...)'), luego dentro de cada complejo
+    extraer las películas con el patrón 'Título (idioma)(formato).- horarios'.
+    """
+    # Normalizar entidades y espacios
+    t = texto_plano.replace("&amp;", "&").replace("&ordm;", "º").replace("&deg;", "º")
+    t = re.sub(r"\s+", " ", t).strip()
+
+    # 1) Encontrar los complejos. Un complejo arranca con un nombre y abre
+    #    paréntesis con dirección que contiene 'Te.' o 'Nº' (teléfono/altura).
+    #    Capturamos el nombre (letras antes del paréntesis) y la dirección.
+    re_complejo = re.compile(
+        r"([A-Za-zÁÉÍÓÚÑáéíóúñ][A-Za-zÁÉÍÓÚÑáéíóúñ .'\-]*?)"
+        r"\(([^)]*(?:Te\.|N[º°]|Tel)[^)]*)\)"
+    )
+
+    matches = list(re_complejo.finditer(t))
+    if not matches:
+        return []
+
     cines = []
-    actual = None
+    for idx, m in enumerate(matches):
+        nombre = m.group(1).strip(" .-").title()
+        direccion = re.sub(r"\s+", " ", m.group(2)).strip()
+        # El bloque de películas va desde el fin de este match hasta el
+        # comienzo del próximo complejo (o el final del texto).
+        ini = m.end()
+        fin = matches[idx + 1].start() if idx + 1 < len(matches) else len(t)
+        bloque = t[ini:fin]
 
-    for raw in texto_plano.split("\n"):
-        linea = re.sub(r"\s+", " ", raw).strip()
-        if not linea:
-            continue
-
-        m_cine = RE_CINE.match(linea)
-        if m_cine:
-            # nuevo complejo
-            if actual and actual["peliculas"]:
-                cines.append(actual)
-            actual = {
-                "cine": m_cine.group(1).strip().title(),
-                "direccion": m_cine.group(2).strip(),
-                "peliculas": [],
-            }
-            continue
-
-        if actual is not None:
-            peli = _parsear_pelicula(linea)
-            if peli:
-                actual["peliculas"].append(peli)
-
-    if actual and actual["peliculas"]:
-        cines.append(actual)
+        peliculas = _parsear_peliculas_bloque(bloque)
+        if peliculas:
+            cines.append({
+                "cine": nombre,
+                "direccion": direccion,
+                "peliculas": peliculas,
+            })
 
     return cines
 
 
+# Una película: "Título (idioma)(formato opcional).- horarios"
+# Los horarios son números/HH:MM separados por coma, hasta el próximo título.
+
+
+def _parsear_peliculas_bloque(bloque):
+    """Extrae películas de un bloque de texto corrido.
+
+    Formato: 'Título (idioma)(formato).- h, h, h Título2 (idioma).- h ...'
+    Estrategia robusta: separar por el marcador '.-'. Cada '.-' está precedido
+    por (Título + paréntesis) y seguido por los horarios. El texto entre el fin
+    de unos horarios y el próximo '.-' es el título siguiente.
+    """
+    pelis = []
+    # Posiciones de cada '.-'
+    marcadores = [mm.start() for mm in re.finditer(r"\.-", bloque)]
+    if not marcadores:
+        return pelis
+
+    cursor = 0  # inicio del título actual
+    for k, pos in enumerate(marcadores):
+        cabeza = bloque[cursor:pos]  # "Título (idioma)(formato)"
+        # horarios: desde pos+2 hasta donde empiece el próximo título.
+        resto = bloque[pos + 2:]
+        m_h = re.match(r"\s*(\d{1,2}(?::\d{2})?(?:\s*,\s*\d{1,2}(?::\d{2})?)*)", resto)
+        if not m_h:
+            cursor = pos + 2
+            continue
+        horarios_str = m_h.group(1)
+        fin_horarios = pos + 2 + m_h.end()
+
+        # idioma/formato de la cabeza
+        parens = RE_PAREN.findall(cabeza)
+        titulo = RE_PAREN.sub("", cabeza).strip(" .-·\u00a0")
+        idioma = ""
+        formato = ""
+        for p in parens:
+            pl = p.strip().lower()
+            if pl in IDIOMAS:
+                idioma = p.strip()
+            else:
+                formato = p.strip()
+
+        horarios = []
+        for tok in horarios_str.split(","):
+            hh = _normalizar_hora(tok)
+            if hh:
+                horarios.append(hh)
+
+        if titulo and horarios:
+            pelis.append({
+                "titulo": titulo,
+                "idioma": idioma,
+                "formato": formato,
+                "horarios": horarios,
+            })
+
+        cursor = fin_horarios  # el próximo título empieza acá
+
+    return pelis
+
+
 def _extraer_texto_guia(html):
-    """Saca el cuerpo de la nota como texto plano por líneas."""
+    """La cartelera de El Día está en el <meta name='description'> (accesible
+    sin muro de pago). El cuerpo del artículo está detrás de login, así que
+    NO lo usamos. Fallback: og/twitter description o el cuerpo visible.
+    Devuelve texto corrido (el parser lo entiende de una sola tirada).
+    """
     soup = BeautifulSoup(html, "html.parser")
-    # El cuerpo de la nota suele estar en <article> o en el contenedor principal.
-    cont = soup.find("article") or soup.find("main") or soup.body
-    if not cont:
-        return ""
-    # Insertamos saltos: cada <br> y cada <p> es una línea lógica
-    for br in cont.find_all("br"):
-        br.replace_with("\n")
-    lineas = []
-    for el in cont.find_all(["p", "div", "span", "li"]):
-        t = el.get_text(" ", strip=True)
-        if t:
-            lineas.append(t)
-    if not lineas:
-        lineas = [cont.get_text("\n", strip=True)]
-    return "\n".join(lineas)
+
+    candidatos = []
+    for attrs in [{"name": "description"},
+                  {"property": "og:description"},
+                  {"name": "twitter:description"}]:
+        tag = soup.find("meta", attrs=attrs)
+        if tag and tag.get("content"):
+            candidatos.append(tag["content"])
+
+    # La cartelera es el texto más largo que contenga el patrón ".-"
+    fuente = ""
+    for c in candidatos:
+        if ".-" in c and len(c) > len(fuente):
+            fuente = c
+
+    if not fuente:
+        # Último recurso: cuerpo visible (por si algún día sacan el muro)
+        cont = soup.find("article") or soup.body
+        if cont:
+            for br in cont.find_all("br"):
+                br.replace_with(" ")
+            fuente = cont.get_text(" ", strip=True)
+
+    return fuente
 
 
 def scrapear_cine_tradicional(url=None):

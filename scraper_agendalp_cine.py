@@ -1,132 +1,114 @@
 """
 scraper_agendalp_cine.py — Cine ALTERNATIVO para MoVeTe
-Fuente: AgendaLP (agendalaplata.ar), filtrando las tarjetas con etiqueta "Cine".
+Fuente: AgendaLP (agendalaplata.ar).
 
-Importante (descubierto en diagnóstico):
-  - El parámetro ?filtro=cine NO filtra del lado servidor (lo hace JS en el
-    navegador). El servidor devuelve TODAS las categorías igual. Por eso
-    filtramos nosotros por la etiqueta de cada tarjeta.
-  - La página carga por fecha: un fetch por día.
-  - Cada función es un EVENTO PUNTUAL (a diferencia del cine tradicional que es
-    cartelera). Salida: lista de funciones con título, hora, espacio, fecha.
+IMPORTANTE: usa EXACTAMENTE el método que ya funciona desde GitHub Actions
+en el scraper de eventos (URL limpia, sin ?filtro; User-Agent corto de Linux;
+pausa entre días). El filtrado de cine lo hacemos nosotros por la etiqueta de
+categoría que precede a cada evento, igual que el scraper de WP.
 
-Salida:
-  [
-    {"titulo": "El escuerzo (2023) Dir. Augusto Sinay",
-     "hora": "18:00", "espacio": "Cine Club Proyecciones Terrestres",
-     "fecha": "2026-06-14"},
-    ...
-  ]
+Cada función es un evento puntual: título, hora, espacio, fecha.
 """
 
 import re
 import sys
-from datetime import datetime, timedelta
+import time
+from datetime import date, datetime, timedelta
 import requests
 from bs4 import BeautifulSoup
 
+# Mismo método que el scraper que ya conecta desde GitHub:
+HEADERS = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) Chrome/120.0"}
 BASE = "https://agendalaplata.ar/genda/"
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-    )
-}
 
-# Etiquetas que consideramos "cine" en AgendaLP
-ETIQUETA_CINE = "cine"
+PATRON_EVENTO = re.compile(r"(\d{1,2}):(\d{2})\s*hs\s*\|[ \t]*([^\n]{0,100})")
+PATRON_HORA = re.compile(r"^\d{1,2}:\d{2}\s*hs")
 
-# Ruido a descartar dentro de las tarjetas
-RUIDO = {"cartelera", "cómo llegar", "como llegar", "alerta",
-         "¿con quién irías?", "con quien irias", "invitalo/a", "invitalo"}
-
-RE_HORA = re.compile(r"(\d{1,2}):(\d{2})\s*hs")
+PALABRAS_UI = {"cartelera", "cómo llegar", "como llegar", "alerta",
+               "invitalo/a", "¿con quién irías?", "con quien irias",
+               "sucediendo ahora", "finalizadas", "línea de tiempo",
+               "▼", "‹", "›", "06h", "12h", "18h", "24h"}
 
 
-def _limpiar(t):
-    return re.sub(r"\s+", " ", t or "").strip()
+def _es_cine(cat_genda, titulo):
+    """True si la etiqueta de categoría dice cine."""
+    return "cine" in f"{cat_genda} {titulo}".lower().split("|")[0][:40] \
+        if False else "cine" in cat_genda.lower()
 
 
-def _scrapear_dia(fecha_str):
-    """Devuelve las funciones de cine de un día (YYYY-MM-DD)."""
-    url = f"{BASE}?fecha={fecha_str}&filtro=cine"
-    try:
-        r = requests.get(url, headers=HEADERS, timeout=20)
-        r.raise_for_status()
-    except Exception as e:
-        print(f"[agendalp-cine] {fecha_str}: error {e}", file=sys.stderr)
-        return []
-
-    soup = BeautifulSoup(r.text, "html.parser")
-
-    # La página es una línea de tiempo de tarjetas. Recorremos el texto en
-    # bloques: cada tarjeta empieza con su etiqueta de categoría (Cine, Teatro,
-    # Música, Museo...) seguida del título, la hora y el espacio.
-    # Trabajamos sobre el texto plano por robustez (la estructura DOM varía).
-    texto = soup.get_text("\n", strip=True)
-    lineas = [_limpiar(l) for l in texto.split("\n") if _limpiar(l)]
-
+def _parsear_dia(html, fecha_dia):
     funciones = []
-    categorias_validas = {"cine", "teatro", "música", "musica", "infantil",
-                          "museo", "feria", "exposición", "exposicion",
-                          "visita", "recreativo", "actividad"}
+    soup = BeautifulSoup(html, "html.parser")
+    texto = soup.get_text("\n")
+    texto = re.sub(r"(\d{1,2}:\d{2}\s*hs)\s*\|\s*", r"\1 | ", texto)
 
-    i = 0
-    n = len(lineas)
-    while i < n:
-        etiqueta = lineas[i].lower()
-        # ¿esta línea es una etiqueta de categoría sola?
-        es_etiqueta = etiqueta in categorias_validas or \
-            all(p in categorias_validas for p in etiqueta.split())
+    for m in PATRON_EVENTO.finditer(texto):
+        hora = f"{int(m.group(1)):02d}:{m.group(2)}"
+        venue = m.group(3).strip()
+        if PATRON_HORA.match(venue):
+            venue = ""
 
-        if es_etiqueta and etiqueta.split()[0] == ETIQUETA_CINE:
-            # Las siguientes líneas son: título / "HH:MM hs | Espacio" / ...
-            titulo = lineas[i + 1] if i + 1 < n else ""
-            hora = ""
-            espacio = ""
-            # Buscamos en las próximas líneas la que tenga "HH:MM hs | Espacio"
-            for j in range(i + 1, min(i + 6, n)):
-                m = RE_HORA.search(lineas[j])
-                if m and "|" in lineas[j]:
-                    hora = f"{m.group(1).zfill(2)}:{m.group(2)}"
-                    espacio = lineas[j].split("|", 1)[1].strip()
-                    break
-            # Una tarjeta REAL siempre tiene hora + espacio. Si no los tiene,
-            # es el menú de categorías del encabezado (Cine/Teatro/Música...),
-            # no una función: lo descartamos.
-            es_tarjeta_real = bool(hora and espacio)
-            if es_tarjeta_real and titulo and titulo.lower() not in RUIDO:
-                funciones.append({
-                    "titulo": titulo,
-                    "hora": hora,
-                    "espacio": espacio,
-                    "fecha": fecha_str,
-                })
-                i += 2
-                continue
-        i += 1
+        contexto_previo = texto[max(0, m.start() - 400):m.start()]
+        previas = [l.strip() for l in contexto_previo.split("\n")
+                   if l.strip()
+                   and not PATRON_HORA.match(l.strip())
+                   and l.strip().lower() not in PALABRAS_UI]
+        if not previas:
+            continue
 
+        titulo = previas[-1]
+        cat_genda = previas[-2] if len(previas) >= 2 else ""
+
+        if len(titulo) < 3 or len(titulo) > 120:
+            continue
+        if titulo.lower() == venue.lower():
+            continue
+        if "????" in titulo:
+            continue
+
+        # Solo cine
+        if "cine" not in cat_genda.lower():
+            continue
+
+        funciones.append({
+            "titulo": titulo,
+            "hora": hora,
+            "espacio": venue or "La Plata",
+            "fecha": fecha_dia.isoformat(),
+        })
     return funciones
 
 
 def scrapear_cine_alternativo(desde=None, dias=7):
-    """Scrapea 'dias' días a partir de 'desde' (datetime). Default: hoy + 7."""
+    """Scrapea 'dias' días desde 'desde' (datetime/date). Default: hoy + 7."""
     if desde is None:
-        desde = datetime.now()
+        desde = date.today()
+    elif isinstance(desde, datetime):
+        desde = desde.date()
 
-    todas = []
+    funciones = []
     vistos = set()
-    for d in range(dias):
-        fecha = (desde + timedelta(days=d)).strftime("%Y-%m-%d")
-        for f in _scrapear_dia(fecha):
-            clave = (f["titulo"].lower(), f["fecha"], f["hora"], f["espacio"].lower())
-            if clave not in vistos:
-                vistos.add(clave)
-                todas.append(f)
+    for offset in range(dias):
+        dia = desde + timedelta(days=offset)
+        try:
+            r = requests.get(BASE, params={"fecha": dia.isoformat()},
+                             headers=HEADERS, timeout=25)
+            if r.status_code != 200:
+                print(f"  genda-cine/{dia}: HTTP {r.status_code}", file=sys.stderr)
+                continue
+            for f in _parsear_dia(r.text, dia):
+                clave = (f["titulo"].lower(), f["fecha"], f["hora"],
+                         f["espacio"].lower())
+                if clave not in vistos:
+                    vistos.add(clave)
+                    funciones.append(f)
+        except requests.RequestException as e:
+            print(f"  genda-cine/{dia}: error {e}", file=sys.stderr)
+        time.sleep(0.5)
 
-    print(f"[agendalp-cine] Funciones de cine alternativo: {len(todas)}",
+    print(f"  genda-cine: {len(funciones)} funciones en {dias} días",
           file=sys.stderr)
-    return todas
+    return funciones
 
 
 if __name__ == "__main__":
