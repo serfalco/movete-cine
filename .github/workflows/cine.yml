@@ -28,9 +28,9 @@ jobs:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
 
       # --- Subida a Hostinger por FTP ---
-      # El FTP de Hostinger a veces se cuelga (Timeout control socket).
-      # Primer intento. Si falla, NO corta el workflow (continue-on-error)
-      # y entra el segundo intento de abajo.
+      # FileZilla conecta pero Actions daba Timeout: probamos FTPS (FTP sobre
+      # TLS), que es lo que muchos hostings exigen. protocol: ftps + puerto 21.
+      # El FTP de Hostinger a veces se cuelga, así que hay doble intento.
       - name: Subir a Hostinger por FTP (intento 1)
         id: ftp1
         continue-on-error: true
@@ -39,12 +39,13 @@ jobs:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USER }}
           password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          port: 21
           local-dir: ./cine/
           server-dir: ${{ secrets.FTP_REMOTE_CINE }}
           dangerous-clean-slate: false
           timeout: 60000
 
-      # Espera 30s y reintenta SOLO si el intento 1 falló.
       - name: Esperar antes de reintentar
         if: steps.ftp1.outcome == 'failure'
         run: sleep 30
@@ -56,6 +57,8 @@ jobs:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USER }}
           password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          port: 21
           local-dir: ./cine/
           server-dir: ${{ secrets.FTP_REMOTE_CINE }}
           dangerous-clean-slate: false
