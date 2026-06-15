@@ -24,6 +24,8 @@ jobs:
 
       - name: Generar la cartelera de la semana
         run: python main.py
+        env:
+          TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
 
       - name: Subir a Hostinger por FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
