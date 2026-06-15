@@ -232,13 +232,35 @@ def _parsear_peliculas_bloque(bloque):
 
 
 def _extraer_texto_guia(html):
-    """La cartelera de El Día está en el <meta name='description'> (accesible
-    sin muro de pago). El cuerpo del artículo está detrás de login, así que
-    NO lo usamos. Fallback: og/twitter description o el cuerpo visible.
+    """Extrae el texto corrido de la cartelera.
+
+    La cartelera de El Día es PÚBLICA y está COMPLETA en el cuerpo del
+    artículo (no hay muro de pago). El <meta description> solo trae un
+    resumen recortado (~1 cine), así que ya NO es la fuente principal.
+
+    Estrategia (de más completo a menos):
+      1. Cuerpo del artículo: <article> o el <div> de la nota.
+         Es donde está la cartelera entera (todos los cines).
+      2. Fallback: meta description (og/twitter). Red de seguridad por si
+         algún día cambia la estructura del cuerpo; trae poco pero algo.
+
     Devuelve texto corrido (el parser lo entiende de una sola tirada).
     """
     soup = BeautifulSoup(html, "html.parser")
 
+    # 1) Cuerpo del artículo (fuente principal: cartelera completa)
+    cont = soup.find("article") or soup.find(
+        "div", class_=re.compile("nota|article|cuerpo|content", re.I)
+    )
+    if cont:
+        for br in cont.find_all("br"):
+            br.replace_with(" ")
+        cuerpo = cont.get_text(" ", strip=True)
+        # Solo lo damos por válido si realmente trae cartelera (marcador ".-")
+        if ".-" in cuerpo:
+            return cuerpo
+
+    # 2) Fallback: meta description (resumen recortado, pero mejor que nada)
     candidatos = []
     for attrs in [{"name": "description"},
                   {"property": "og:description"},
@@ -247,19 +269,10 @@ def _extraer_texto_guia(html):
         if tag and tag.get("content"):
             candidatos.append(tag["content"])
 
-    # La cartelera es el texto más largo que contenga el patrón ".-"
     fuente = ""
     for c in candidatos:
         if ".-" in c and len(c) > len(fuente):
             fuente = c
-
-    if not fuente:
-        # Último recurso: cuerpo visible (por si algún día sacan el muro)
-        cont = soup.find("article") or soup.body
-        if cont:
-            for br in cont.find_all("br"):
-                br.replace_with(" ")
-            fuente = cont.get_text(" ", strip=True)
 
     return fuente
 
