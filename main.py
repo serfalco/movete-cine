@@ -8,11 +8,72 @@ Principio rector: si una pata falla, la otra sigue. La página sale igual.
 
 import os
 import sys
+import json
 from datetime import datetime, timedelta
 
 from scraper_eldia import scrapear_cine_tradicional
 from scraper_agendalp_cine import scrapear_cine_alternativo
 from generar_html import generar
+import tmdb
+
+CACHE_PATH = "cine/peliculas.json"
+ALIAS_PATH = "alias.json"
+
+
+def _cargar_json(path, default):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return default
+
+
+def enriquecer_con_tmdb(tradicional):
+    """Adjunta a cada película un campo 'tmdb' con sus datos (o None).
+
+    Usa caché (peliculas.json) para no re-buscar títulos ya conocidos, y
+    alias.json para los títulos que TMDb tiene con otro nombre.
+
+    BLINDADO: ante cualquier problema, la película queda sin 'tmdb' y la
+    página se genera igual (cae al placeholder).
+    """
+    if not tmdb.disponible():
+        print("[main] Sin TMDB_API_KEY: se usa placeholder en todos los pósters.",
+              file=sys.stderr)
+        return tradicional, []
+
+    cache = _cargar_json(CACHE_PATH, {})
+    alias = _cargar_json(ALIAS_PATH, {})
+    no_encontrados = []
+    nuevos = 0
+
+    for cine in tradicional:
+        for peli in cine["peliculas"]:
+            titulo = peli["titulo"]
+            clave = tmdb.limpiar_titulo(titulo)
+
+            if clave in cache:
+                peli["tmdb"] = cache[clave]  # puede ser dict o None
+                continue
+
+            info = tmdb.buscar_pelicula(titulo, alias=alias)
+            cache[clave] = info            # cacheamos también los None
+            peli["tmdb"] = info
+            nuevos += 1
+            if info is None:
+                no_encontrados.append(clave)
+
+    # Guardar caché actualizado
+    try:
+        os.makedirs("cine", exist_ok=True)
+        with open(CACHE_PATH, "w", encoding="utf-8") as f:
+            json.dump(cache, f, ensure_ascii=False, indent=2, sort_keys=True)
+    except OSError as e:
+        print(f"[main] No pude guardar caché de pósters: {e}", file=sys.stderr)
+
+    print(f"[main] TMDb: {nuevos} títulos nuevos buscados, "
+          f"{len(no_encontrados)} sin match.", file=sys.stderr)
+    return tradicional, no_encontrados
 
 
 def jueves_de_esta_semana(hoy=None):
@@ -48,6 +109,10 @@ def main():
         print("[main] Ambas fuentes vacías. No se genera página.", file=sys.stderr)
         sys.exit(1)
 
+    # Enriquecer cine tradicional con TMDb (póster, sinopsis, año, duración,
+    # género). Blindado: si falla, cada película cae al placeholder.
+    tradicional, no_encontrados = enriquecer_con_tmdb(tradicional)
+
     html = generar(tradicional, alternativo, jueves)
 
     os.makedirs("cine", exist_ok=True)
@@ -60,6 +125,14 @@ def main():
         f.write(_redirect(jueves.strftime('%Y-%m-%d')))
 
     print(f"[main] Generado: {salida}", file=sys.stderr)
+
+    # Reporte capa 4: títulos sin match en TMDb, para agregar a alias.json.
+    if no_encontrados:
+        print("[main] --- Sin afiche/datos (revisá alias.json) ---",
+              file=sys.stderr)
+        for t in no_encontrados:
+            print(f"[main]   · {t}", file=sys.stderr)
+
     print(salida)
 
 

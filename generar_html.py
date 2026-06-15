@@ -42,6 +42,28 @@ def _meta_badge(idioma, formato):
     return "".join(spans)
 
 
+def _ficha_extra(info):
+    """Línea de año · duración · género, solo con lo que TMDb haya traído."""
+    if not info:
+        return ""
+    partes = []
+    if info.get("anio"):
+        partes.append(_esc(str(info["anio"])))
+    if info.get("duracion"):
+        partes.append(f"{int(info['duracion'])} min")
+    if info.get("generos"):
+        partes.append(_esc(" · ".join(info["generos"])))
+    if not partes:
+        return ""
+    return f'<p class="movete-pelicula-ficha">{" · ".join(partes)}</p>'
+
+
+def _sinopsis_html(info):
+    if info and info.get("sinopsis"):
+        return f'<p class="movete-pelicula-sinopsis">{_esc(info["sinopsis"])}</p>'
+    return ""
+
+
 def _bloque_tradicional(cines):
     if not cines:
         return ('<p class="movete-cine-vacio">Esta semana no hay cartelera '
@@ -52,13 +74,22 @@ def _bloque_tradicional(cines):
         for p in c["peliculas"]:
             funciones = "".join(f"<li>{_esc(h)}</li>" for h in p["horarios"])
             meta = _meta_badge(p.get("idioma", ""), p.get("formato", ""))
+
+            # Datos TMDb que main.py adjuntó a la película (o None).
+            info = p.get("tmdb")
+            poster = (info or {}).get("poster") or POSTER
+            ficha = _ficha_extra(info)
+            sinopsis = _sinopsis_html(info)
+
             pelis.append(f"""
       <article class="movete-pelicula">
-        <img class="movete-pelicula-poster" src="{POSTER}" loading="lazy"
-             alt="Cine">
+        <img class="movete-pelicula-poster" src="{poster}" loading="lazy"
+             alt="Afiche de {_esc(p['titulo'])}">
         <div class="movete-pelicula-info">
           <h4 class="movete-pelicula-titulo">{_esc(p['titulo'])}</h4>
+          {ficha}
           <p class="movete-pelicula-meta">{meta}</p>
+          {sinopsis}
           <ul class="movete-pelicula-funciones">{funciones}</ul>
         </div>
       </article>""")
@@ -184,6 +215,7 @@ def generar(cines_tradicional, funciones_alternativo, jueves):
 <footer class="movete-foot">
   <p>© {jueves.year} MoVeTe · Agenda Cultural del Gran La Plata</p>
   <p class="movete-foot-fuente">Cartelera tradicional: diario El Día · Cine alternativo: Agenda La Plata. Los horarios pueden cambiar; confirmá en la sala.</p>
+  <p class="movete-foot-fuente">Información de películas y afiches: <a href="https://www.themoviedb.org" rel="noopener">The Movie Database (TMDb)</a>. Este producto usa la API de TMDb pero no está avalado ni certificado por TMDb.</p>
 </footer>
 
 </body>
@@ -264,9 +296,13 @@ a{color:inherit;}
 .movete-pelicula-info{display:flex;flex-direction:column;gap:8px;}
 .movete-pelicula-titulo{font-family:var(--ff-serif);font-size:20px;font-weight:700;
   margin:0;line-height:1.2;}
+.movete-pelicula-ficha{font-family:var(--ff-mono);font-size:11px;color:var(--muted);
+  margin:0;letter-spacing:0.03em;}
 .movete-pelicula-meta{font-family:var(--ff-mono);font-size:11px;color:var(--muted);
   text-transform:uppercase;letter-spacing:0.06em;margin:0;display:flex;gap:10px;
   flex-wrap:wrap;align-items:center;}
+.movete-pelicula-sinopsis{font-size:14px;line-height:1.5;margin:0;
+  color:rgba(14,13,16,0.72);max-width:60ch;}
 .movete-pelicula-badge{display:inline-block;font-family:var(--ff-mono);font-size:9px;
   font-weight:700;text-transform:uppercase;letter-spacing:0.1em;padding:2px 7px;
   border-radius:2px;border:1px solid var(--accent);color:var(--accent);}
