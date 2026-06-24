@@ -1,20 +1,17 @@
-name: MoVeTe Cine semanal
+name: Test Cine
 
 on:
-  schedule:
-    # Jueves 07:00 Argentina (10:00 UTC)
-    - cron: "0 10 * * 4"
   workflow_dispatch:
 
 jobs:
-  generar:
+  test-cine:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -22,13 +19,7 @@ jobs:
       - name: Instalar dependencias
         run: pip install -r requirements.txt
 
-      - name: Generar cartelera
+      - name: Generar prueba local
         env:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
-        run: python main.py
-
-      - name: Subir cine como artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: cine-html
-          path: cine/
+        run: python main.py --output ./_salida_cine
