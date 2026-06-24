@@ -1,12 +1,4 @@
-"""Generador HTML de Cine para MoVeTe.
-
-Recibe:
-- cine tradicional desde El Día
-- cine alternativo desde Agenda La Plata
-- fecha de jueves de edición
-
-Devuelve un HTML completo, compatible visualmente con Movete-info.
-"""
+"""Generador HTML de Cine para MoVeTe."""
 
 from __future__ import annotations
 
@@ -203,7 +195,7 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
     <section class="hero compact">
       <p class="eyebrow">Cine · Edición {esc(fecha_iso)}</p>
       <h1>Cartelera de cine en La Plata</h1>
-      <p class="lead">Películas, salas y funciones. Edición semanal del {esc(rango)}.</p>
+      <p class="lead">Cada semana, todo el cine de la ciudad.</p>
       <div class="actions">
         <a class="button" href="#cine-tradicional">Cine tradicional</a>
         <a class="button secondary" href="#cine-alternativo">Cine alternativo</a>
@@ -211,9 +203,9 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
     </section>
 
     <section class="card edition-summary">
-      <p class="tag">Esta edición</p>
-      <h2>{total_peliculas} películas comerciales · {total_alt} funciones alternativas</h2>
-      <p>La cartelera se publica semanalmente y las ediciones anteriores quedan archivadas.</p>
+      <p class="tag">En esta edición</p>
+      <h2>{total_peliculas} películas en salas tradicionales y {total_alt} funciones en salas alternativas.</h2>
+      <p>MoVeTe · Cartelera Cultural del Gran La Plata · Edición {esc(fecha_iso)}</p>
     </section>
 
     <section id="cine-tradicional" class="section">
@@ -247,7 +239,6 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
 
   <footer class="site-footer">
     <p>MoVeTe · Cine y agenda cultural del Gran La Plata · Edición {esc(fecha_iso)}</p>
-    <p>Cartelera tradicional: diario El Día · Cine alternativo: Agenda La Plata.</p>
     <p>Información de películas y afiches: The Movie Database (TMDb). Este producto usa la API de TMDb pero no está avalado ni certificado por TMDb.</p>
   </footer>
 </body>

@@ -47,10 +47,10 @@ def _cargar_json(path: str | Path, default):
 
 
 def enriquecer_con_tmdb(tradicional: list[dict], cache_path: Path):
-    """Adjunta a cada película un campo 'tmdb' con sus datos o None.
+    """Adjunta a cada película un campo 'tmdb' con datos de TMDb o None.
 
-    Blindado: ante cualquier problema, la película queda sin datos
-    y la página se genera igual con placeholder.
+    Blindado: ante cualquier problema, la película queda sin datos y la página
+    se genera igual con placeholder.
     """
 
     if not tmdb.disponible():
@@ -61,6 +61,7 @@ def enriquecer_con_tmdb(tradicional: list[dict], cache_path: Path):
     alias = _cargar_json(ALIAS_PATH, {})
     no_encontrados = []
     nuevos = 0
+    encontrados = 0
 
     for cine in tradicional:
         for peli in cine.get("peliculas", []):
@@ -69,6 +70,8 @@ def enriquecer_con_tmdb(tradicional: list[dict], cache_path: Path):
 
             if clave in cache:
                 peli["tmdb"] = cache[clave]
+                if cache[clave]:
+                    encontrados += 1
                 continue
 
             info = tmdb.buscar_pelicula(titulo, alias=alias)
@@ -78,6 +81,8 @@ def enriquecer_con_tmdb(tradicional: list[dict], cache_path: Path):
 
             if info is None:
                 no_encontrados.append(clave)
+            else:
+                encontrados += 1
 
     try:
         cache_path.parent.mkdir(parents=True, exist_ok=True)
@@ -89,7 +94,7 @@ def enriquecer_con_tmdb(tradicional: list[dict], cache_path: Path):
         print(f"[main] No pude guardar caché de pósters: {e}", file=sys.stderr)
 
     print(
-        f"[main] TMDb: {nuevos} títulos nuevos buscados, {len(no_encontrados)} sin match.",
+        f"[main] TMDb: {nuevos} títulos nuevos buscados, {encontrados} con datos, {len(no_encontrados)} sin match.",
         file=sys.stderr,
     )
 
