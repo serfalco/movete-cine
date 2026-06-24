@@ -1,17 +1,17 @@
 name: MoVeTe Cine semanal
 
-# Jueves 7:00 Argentina (UTC-3) = jueves 10:00 UTC
-# Además se puede disparar a mano desde la pestaña Actions.
 on:
   schedule:
+    # Jueves 07:00 Argentina (10:00 UTC)
     - cron: "0 10 * * 4"
   workflow_dispatch:
 
 jobs:
-  generar-y-publicar:
+  generar:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Traer el repo
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Python
@@ -22,44 +22,13 @@ jobs:
       - name: Instalar dependencias
         run: pip install -r requirements.txt
 
-      - name: Generar la cartelera de la semana
-        run: python main.py
+      - name: Generar cartelera
         env:
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+        run: python main.py
 
-      # --- Subida a Hostinger por FTP ---
-      # FileZilla conecta pero Actions daba Timeout: probamos FTPS (FTP sobre
-      # TLS), que es lo que muchos hostings exigen. protocol: ftps + puerto 21.
-      # El FTP de Hostinger a veces se cuelga, así que hay doble intento.
-      - name: Subir a Hostinger por FTP (intento 1)
-        id: ftp1
-        continue-on-error: true
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      - name: Subir cine como artifact
+        uses: actions/upload-artifact@v4
         with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USER }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftps
-          port: 21
-          local-dir: ./cine/
-          server-dir: ${{ secrets.FTP_REMOTE_CINE }}
-          dangerous-clean-slate: false
-          timeout: 60000
-
-      - name: Esperar antes de reintentar
-        if: steps.ftp1.outcome == 'failure'
-        run: sleep 30
-
-      - name: Subir a Hostinger por FTP (intento 2)
-        if: steps.ftp1.outcome == 'failure'
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USER }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftps
-          port: 21
-          local-dir: ./cine/
-          server-dir: ${{ secrets.FTP_REMOTE_CINE }}
-          dangerous-clean-slate: false
-          timeout: 60000
+          name: cine-html
+          path: cine/
