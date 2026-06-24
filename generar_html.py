@@ -12,6 +12,7 @@ MESES = [
 ]
 
 DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+
 POSTER_PLACEHOLDER = "/assets/img/cine-placeholder.jpg"
 
 
@@ -202,7 +203,6 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
     </section>
 
     <section class="card edition-summary">
-      <p class="tag">En esta edición</p>
       <h2>{total_peliculas} películas en salas tradicionales y {total_alt} funciones en salas alternativas.</h2>
       <p>MoVeTe · Cartelera Cultural del Gran La Plata · Edición {esc(fecha_iso)}</p>
     </section>
@@ -237,7 +237,7 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
   </main>
 
   <footer class="site-footer">
-    <p>MoVeTe · Cine y agenda cultural del Gran La Plata · Edición {esc(fecha_iso)}</p>
+    <p>MoVeTe · Cartelera Cultural del Gran La Plata · Edición {esc(fecha_iso)}</p>
     <p>Información de películas y afiches: The Movie Database (TMDb). Este producto usa la API de TMDb pero no está avalado ni certificado por TMDb.</p>
   </footer>
 </body>
