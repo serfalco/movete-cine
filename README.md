@@ -1,40 +1,55 @@
-# MoVeTe · Sistema de Cine
+# MoVeTe · Cine
 
-Genera la cartelera semanal de cine de La Plata para `movete.info`.
+Generador de cartelera de cine para `movete.info/cine/`.
+
+Este repo no publica por FTP ni depende de Hostinger. Es una herramienta que genera HTML estático para el repo final `Movete-info`.
 
 ## Qué hace
 
 - Scrapea cine tradicional desde El Día.
 - Scrapea cine alternativo desde Agenda La Plata.
-- Enriquece películas con TMDB cuando hay `TMDB_API_KEY`.
-- Genera HTML estático semanal.
+- Enriquece películas con TMDb si existe `TMDB_API_KEY`.
+- Genera la edición semanal jueves→miércoles.
+- Escribe:
+  - `/cine/index.html`
+  - `/cine/YYYY-MM-DD/index.html`
 
-## Salida
-
-```txt
-cine/index.html
-cine/AAAA-MM-DD/index.html
-```
-
-En el flujo completo, la salida se configura así:
-
-```txt
-MOVETE_CINE_OUT=../Movete-info/cine
-```
-
-## Correr local
+## Uso local
 
 ```bash
-pip install -r requirements.txt
-python main.py
+python main.py --output ../Movete-info/cine
+```
+
+## Publicación
+
+La publicación real la ejecuta el workflow central del repo `Movete-info`.
+
+Flujo:
+
+```text
+Movete-info GitHub Actions
+↓
+checkout movete-cine
+↓
+python main.py --output ../Movete-info/cine
+↓
+commit en Movete-info
+↓
+Cloudflare Pages
 ```
 
 ## Secrets
 
 Opcional:
 
-```txt
+```text
 TMDB_API_KEY
 ```
 
-No usa FTP. No usa Hostinger. No usa WordPress.
+Si no existe, el sitio usa placeholder de cine y sigue funcionando.
+
+## Fuentes
+
+- Cine tradicional: Diario El Día.
+- Cine alternativo: Agenda La Plata.
+- Datos y afiches: TMDb.

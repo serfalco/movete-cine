@@ -1,346 +1,255 @@
-"""
-generar_html.py — Generador de la página de cine de MoVeTe
-Toma cine tradicional (El Día) + cine alternativo (AgendaLP) y arma una
-página HTML autónoma y archivable con el diseño del tema MoVeTe.
+"""Generador HTML de Cine para MoVeTe.
 
-Salida: cine/AAAA-MM-DD.html  (la fecha es el jueves de inicio de la semana)
+Recibe:
+- cine tradicional desde El Día
+- cine alternativo desde Agenda La Plata
+- fecha de jueves de edición
+
+Devuelve un HTML completo, compatible visualmente con Movete-info.
 """
+
+from __future__ import annotations
 
 import html
-import locale
+from collections import defaultdict
 from datetime import datetime, timedelta
 
-# Placeholder único para esta versión (solo texto, sin pósters)
-POSTER = "https://movete.info/wp-content/uploads/2026/05/cine-placeholder.jpg"
+MESES = [
+    "enero", "febrero", "marzo", "abril", "mayo", "junio",
+    "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+]
 
-MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio",
-         "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+
+POSTER_PLACEHOLDER = "/assets/img/cine-placeholder.jpg"
 
 
-def _esc(t):
-    return html.escape(t or "", quote=True)
+def esc(valor: object) -> str:
+    return html.escape(str(valor or ""), quote=True)
 
 
-def _rango_texto(jueves):
-    """'18 al 24 de junio' o '30 de junio al 6 de julio'."""
+def rango_texto(jueves: datetime) -> str:
     fin = jueves + timedelta(days=6)
     if jueves.month == fin.month:
         return f"{jueves.day} al {fin.day} de {MESES[fin.month - 1]}"
-    return (f"{jueves.day} de {MESES[jueves.month - 1]} "
-            f"al {fin.day} de {MESES[fin.month - 1]}")
+    return f"{jueves.day} de {MESES[jueves.month - 1]} al {fin.day} de {MESES[fin.month - 1]}"
 
 
-def _meta_badge(idioma, formato):
-    """Devuelve los <span> de meta de una película tradicional."""
-    spans = []
+def meta_badges(idioma: str, formato: str) -> str:
+    badges = []
     if idioma:
         idi = "Subtitulada" if idioma.lower().startswith("subt") else "Castellano"
-        spans.append(f'<span class="idioma">{_esc(idi)}</span>')
+        badges.append(f'<span class="pill">{esc(idi)}</span>')
     if formato:
-        spans.append(f'<span class="formato">'
-                     f'<span class="movete-pelicula-badge">{_esc(formato)}</span></span>')
-    return "".join(spans)
+        badges.append(f'<span class="pill">{esc(formato)}</span>')
+    return "".join(badges)
 
 
-def _ficha_extra(info):
-    """Línea de año · duración · género, solo con lo que TMDb haya traído."""
+def ficha_extra(info: dict | None) -> str:
     if not info:
         return ""
+
     partes = []
+
     if info.get("anio"):
-        partes.append(_esc(str(info["anio"])))
+        partes.append(str(info["anio"]))
+
     if info.get("duracion"):
-        partes.append(f"{int(info['duracion'])} min")
+        try:
+            partes.append(f"{int(info['duracion'])} min")
+        except (TypeError, ValueError):
+            pass
+
     if info.get("generos"):
-        partes.append(_esc(" · ".join(info["generos"])))
+        partes.append(" · ".join(info["generos"]))
+
     if not partes:
         return ""
-    return f'<p class="movete-pelicula-ficha">{" · ".join(partes)}</p>'
+
+    return f'<p class="event-meta">{esc(" · ".join(partes))}</p>'
 
 
-def _sinopsis_html(info):
+def sinopsis_html(info: dict | None) -> str:
     if info and info.get("sinopsis"):
-        return f'<p class="movete-pelicula-sinopsis">{_esc(info["sinopsis"])}</p>'
+        return f'<p>{esc(info["sinopsis"])}</p>'
     return ""
 
 
-def _bloque_tradicional(cines):
+def poster_url(info: dict | None) -> str:
+    if info and info.get("poster"):
+        return esc(info["poster"])
+    return POSTER_PLACEHOLDER
+
+
+def bloque_tradicional(cines: list[dict]) -> str:
     if not cines:
-        return ('<p class="movete-cine-vacio">Esta semana no hay cartelera '
-                'comercial disponible.</p>')
-    out = []
-    for c in cines:
-        pelis = []
-        for p in c["peliculas"]:
-            funciones = "".join(f"<li>{_esc(h)}</li>" for h in p["horarios"])
-            meta = _meta_badge(p.get("idioma", ""), p.get("formato", ""))
+        return '<p class="empty">Esta semana no hay cartelera comercial disponible.</p>'
 
-            # Datos TMDb que main.py adjuntó a la película (o None).
-            info = p.get("tmdb")
-            poster = (info or {}).get("poster") or POSTER
-            ficha = _ficha_extra(info)
-            sinopsis = _sinopsis_html(info)
+    bloques = []
 
-            pelis.append(f"""
-      <article class="movete-pelicula">
-        <img class="movete-pelicula-poster" src="{poster}" loading="lazy"
-             alt="Afiche de {_esc(p['titulo'])}">
-        <div class="movete-pelicula-info">
-          <h4 class="movete-pelicula-titulo">{_esc(p['titulo'])}</h4>
-          {ficha}
-          <p class="movete-pelicula-meta">{meta}</p>
-          {sinopsis}
-          <ul class="movete-pelicula-funciones">{funciones}</ul>
-        </div>
-      </article>""")
-        out.append(f"""
-  <section class="movete-cine">
-    <h3 class="movete-cine-title">{_esc(c['cine'])}</h3>
-    <p class="movete-cine-direccion">{_esc(c['direccion'])}</p>
-    <div class="movete-pelicula-grid">{''.join(pelis)}
-    </div>
-  </section>""")
-    return "".join(out)
+    for cine in cines:
+        peliculas = []
+
+        for peli in cine.get("peliculas", []):
+            info = peli.get("tmdb")
+            horarios = peli.get("horarios", [])
+            horarios_html = "".join(f"<li>{esc(h)}</li>" for h in horarios)
+
+            peliculas.append(
+                f"""
+                <article class="movie-card">
+                  <img class="movie-poster" src="{poster_url(info)}" alt="Afiche de {esc(peli.get('titulo'))}" loading="lazy">
+                  <div>
+                    <h3>{esc(peli.get('titulo'))}</h3>
+                    {ficha_extra(info)}
+                    <div class="pill-row">{meta_badges(peli.get('idioma', ''), peli.get('formato', ''))}</div>
+                    {sinopsis_html(info)}
+                    <ul class="times">{horarios_html}</ul>
+                  </div>
+                </article>
+                """
+            )
+
+        bloques.append(
+            f"""
+            <section class="day-block">
+              <h2>{esc(cine.get('cine'))}</h2>
+              <p class="event-meta">{esc(cine.get('direccion'))}</p>
+              <div class="movie-list">
+                {''.join(peliculas)}
+              </div>
+            </section>
+            """
+        )
+
+    return "\n".join(bloques)
 
 
-def _bloque_alternativo(funciones):
+def bloque_alternativo(funciones: list[dict]) -> str:
     if not funciones:
-        return ('<p class="movete-cine-vacio">Esta semana no hay funciones '
-                'alternativas cargadas.</p>')
-    # Agrupar por fecha para que se lea como agenda
-    por_fecha = {}
-    for f in funciones:
-        por_fecha.setdefault(f["fecha"], []).append(f)
+        return '<p class="empty">Esta semana no hay funciones alternativas cargadas.</p>'
 
-    out = []
+    por_fecha: dict[str, list[dict]] = defaultdict(list)
+
+    for funcion in funciones:
+        por_fecha[funcion.get("fecha", "")].append(funcion)
+
+    bloques = []
+
     for fecha in sorted(por_fecha):
         try:
             d = datetime.strptime(fecha, "%Y-%m-%d")
-            dia_label = f"{_DIAS[d.weekday()]} {d.day}"
+            dia_label = f"{DIAS[d.weekday()]} {d.day} {MESES[d.month - 1]}"
         except ValueError:
             dia_label = fecha
-        items = []
-        for f in sorted(por_fecha[fecha], key=lambda x: x["hora"]):
-            items.append(f"""
-      <article class="movete-event-item movete-event-item--alt">
-        <div class="movete-event-date">
-          <span class="hora">{_esc(f['hora'])}</span>
-        </div>
-        <div>
-          <div class="movete-event-title">{_esc(f['titulo'])}</div>
-          <div class="movete-event-meta">{_esc(f['espacio'])}</div>
-        </div>
-      </article>""")
-        out.append(f"""
-  <div class="movete-alt-dia">
-    <h3 class="movete-alt-fecha">{dia_label}</h3>
-    {''.join(items)}
-  </div>""")
-    return "".join(out)
+
+        cards = []
+
+        for funcion in sorted(por_fecha[fecha], key=lambda x: x.get("hora", "")):
+            cards.append(
+                f"""
+                <article class="event-card">
+                  <p class="event-date">{esc(funcion.get('hora'))} hs</p>
+                  <h3>{esc(funcion.get('titulo'))}</h3>
+                  <p class="event-meta">{esc(funcion.get('espacio'))}</p>
+                  <p class="pill">Cine alternativo</p>
+                </article>
+                """
+            )
+
+        bloques.append(
+            f"""
+            <section class="day-block">
+              <h2>{esc(dia_label)}</h2>
+              <div class="grid cards">
+                {''.join(cards)}
+              </div>
+            </section>
+            """
+        )
+
+    return "\n".join(bloques)
 
 
-_DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
-
-
-def generar(cines_tradicional, funciones_alternativo, jueves):
-    rango = _rango_texto(jueves)
+def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], jueves: datetime) -> str:
+    rango = rango_texto(jueves)
     fecha_iso = jueves.strftime("%Y-%m-%d")
-    titulo_pag = f"Cine en La Plata · semana del {rango}"
+    trad = bloque_tradicional(cines_tradicional)
+    alt = bloque_alternativo(funciones_alternativo)
 
-    trad = _bloque_tradicional(cines_tradicional)
-    alt = _bloque_alternativo(funciones_alternativo)
+    total_peliculas = sum(len(c.get("peliculas", [])) for c in cines_tradicional)
+    total_alt = len(funciones_alternativo)
 
-    return f"""<!DOCTYPE html>
+    return f"""<!doctype html>
 <html lang="es-AR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{_esc(titulo_pag)} | MoVeTe</title>
-<meta name="description" content="Cartelera de cine en La Plata, semana del {rango}. Cine tradicional y alternativo: salas comerciales, ciclos, INCAA y cine-clubes.">
-<link rel="canonical" href="https://movete.info/cine/{fecha_iso}.html">
-<meta property="og:title" content="{_esc(titulo_pag)}">
-<meta property="og:description" content="Cartelera completa de cine en La Plata: comercial y alternativo.">
-<meta property="og:type" content="website">
-<meta property="og:url" content="https://movete.info/cine/{fecha_iso}.html">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,400;0,700;0,900;1,400;1,700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<style>
-{_CSS}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cartelera de cine en La Plata · Semana del {esc(rango)} · MoVeTe</title>
+  <meta name="description" content="Cartelera de cine en La Plata. Cine tradicional y cine alternativo. Edición semanal del {esc(rango)}.">
+  <link rel="stylesheet" href="/assets/css/movete.css">
 </head>
+
 <body>
+  <header class="site-header">
+    <a class="brand" href="/">MoVeTe<span>●</span></a>
+    <nav>
+      <a href="/cine/">Cine</a>
+      <a href="/en-vivo/">En vivo</a>
+    </nav>
+  </header>
 
-<header class="movete-mini-header">
-  <a href="https://movete.info" class="movete-logo">MoVeTe<span class="movete-logo-dot"></span></a>
-  <nav class="movete-mini-nav">
-    <a href="https://movete.info">Agenda</a>
-    <a href="https://movete.info/cine/" aria-current="page">Cine</a>
-  </nav>
-</header>
+  <main>
+    <section class="hero compact">
+      <p class="eyebrow">Cine · Edición {esc(fecha_iso)}</p>
+      <h1>Cartelera de cine en La Plata</h1>
+      <p class="lead">Películas, salas y funciones. Edición semanal del {esc(rango)}.</p>
+      <div class="actions">
+        <a class="button" href="#cine-tradicional">Cine tradicional</a>
+        <a class="button secondary" href="#cine-alternativo">Cine alternativo</a>
+      </div>
+    </section>
 
-<section class="movete-cine-page-header">
-  <p class="eyebrow">🎬 Cartelera</p>
-  <h1>Cine en <span class="highlight">La Plata</span></h1>
-  <p>Semana del {rango}</p>
-</section>
+    <section class="card edition-summary">
+      <p class="tag">Esta edición</p>
+      <h2>{total_peliculas} películas comerciales · {total_alt} funciones alternativas</h2>
+      <p>La cartelera se publica semanalmente y las ediciones anteriores quedan archivadas.</p>
+    </section>
 
-<main class="movete-cartelera">
-
-  <div class="movete-cine-switch">
-    <a href="#tradicional" class="activo">Cine tradicional</a>
-    <a href="#alternativo">Cine alternativo</a>
-  </div>
-
-  <section id="tradicional" class="movete-cine-grupo">
-    <header class="movete-grupo-head">
+    <section id="cine-tradicional" class="section">
+      <p class="eyebrow">Cartelera comercial</p>
       <h2>Cine tradicional</h2>
-      <p>Las salas comerciales de la ciudad</p>
-    </header>
-    {trad}
-  </section>
+      <p>Salas comerciales de La Plata. Confirmá siempre el horario con el cine antes de salir.</p>
+      {trad}
+    </section>
 
-  <section id="alternativo" class="movete-cine-grupo">
-    <header class="movete-grupo-head">
+    <section id="cine-alternativo" class="section">
+      <p class="eyebrow">Cineclubes y espacios culturales</p>
       <h2>Cine alternativo</h2>
-      <p>Ciclos, INCAA, cine-clubes y funciones especiales</p>
-    </header>
-    <div class="movete-alt-lista">
+      <p>Ciclos, funciones especiales, INCAA, proyecciones y cineclubes.</p>
       {alt}
-    </div>
-  </section>
+    </section>
 
-</main>
+    <section class="ad-box">
+      <p class="ad-label">Espacio promocional</p>
+      <h2>Tres Empanadas Comedia</h2>
+      <p>Stand up en La Plata. Shows a la gorra, todos los viernes.</p>
+      <a class="button small" href="https://tresempanadas.com.ar/reservas">Reservar</a>
+    </section>
 
-<footer class="movete-foot">
-  <p>© {jueves.year} MoVeTe · Agenda Cultural del Gran La Plata</p>
-  <p class="movete-foot-fuente">Cartelera tradicional: diario El Día · Cine alternativo: Agenda La Plata. Los horarios pueden cambiar; confirmá en la sala.</p>
-  <p class="movete-foot-fuente">Información de películas y afiches: <a href="https://www.themoviedb.org" rel="noopener">The Movie Database (TMDb)</a>. Este producto usa la API de TMDb pero no está avalado ni certificado por TMDb.</p>
-</footer>
+    <section class="card">
+      <p class="tag">También en MoVeTe</p>
+      <h2>Agenda de espectáculos en La Plata</h2>
+      <p>Teatro, música, stand up, danza y eventos en vivo de la semana.</p>
+      <a href="/en-vivo/">Ver En Vivo →</a>
+    </section>
+  </main>
 
+  <footer class="site-footer">
+    <p>MoVeTe · Cine y agenda cultural del Gran La Plata · Edición {esc(fecha_iso)}</p>
+    <p>Cartelera tradicional: diario El Día · Cine alternativo: Agenda La Plata.</p>
+    <p>Información de películas y afiches: The Movie Database (TMDb). Este producto usa la API de TMDb pero no está avalado ni certificado por TMDb.</p>
+  </footer>
 </body>
-</html>"""
-
-
-# ----------------------------------------------------------------------------
-# CSS — portado del tema MoVeTe (style.css) + adaptaciones para página estática
-# ----------------------------------------------------------------------------
-_CSS = """
-:root{
-  --ink:#0e0d10; --paper:#f5f1e8; --accent:#ff5128; --accent2:#e8c547;
-  --muted:rgba(14,13,16,0.45); --border:rgba(14,13,16,0.12);
-  --cat-cine:#3b1f2b; --cat-teatro:#7b5ea7; --cat-musica:#2e86ab;
-  --ff-serif:'Fraunces',Georgia,serif; --ff-mono:'JetBrains Mono','Courier New',monospace;
-  --r:4px; --shadow:0 2px 12px rgba(14,13,16,0.10);
-}
-*,*::before,*::after{box-sizing:border-box;}
-body{background:var(--paper);color:var(--ink);font-family:var(--ff-mono);
-  font-size:15px;line-height:1.6;margin:0;-webkit-font-smoothing:antialiased;}
-h1,h2,h3,h4{font-family:var(--ff-serif);font-weight:900;line-height:1.08;
-  letter-spacing:-0.02em;}
-a{color:inherit;}
-
-/* Header compacto */
-.movete-mini-header{background:var(--ink);display:flex;align-items:center;
-  justify-content:space-between;padding:14px 24px;position:sticky;top:0;z-index:100;}
-.movete-logo{color:var(--paper);font-family:var(--ff-serif);font-size:24px;
-  font-weight:900;letter-spacing:-0.03em;text-decoration:none;display:inline-flex;
-  align-items:center;gap:3px;}
-.movete-logo-dot{width:8px;height:8px;background:var(--accent);border-radius:50%;
-  display:inline-block;}
-.movete-mini-nav a{color:rgba(245,241,232,0.7);font-size:12px;font-weight:700;
-  text-transform:uppercase;letter-spacing:0.1em;text-decoration:none;margin-left:18px;}
-.movete-mini-nav a[aria-current="page"]{color:var(--accent);}
-
-/* Header de página */
-.movete-cine-page-header{background:var(--ink);color:var(--paper);
-  padding:64px 24px 48px;text-align:center;border-bottom:3px solid var(--accent);}
-.movete-cine-page-header .eyebrow{font-family:var(--ff-mono);font-size:11px;
-  text-transform:uppercase;letter-spacing:0.2em;color:rgba(245,241,232,0.5);margin:0 0 12px;}
-.movete-cine-page-header h1{font-size:clamp(40px,8vw,80px);color:var(--paper);margin:0 0 10px;}
-.movete-cine-page-header h1 .highlight{color:var(--accent);font-style:italic;}
-.movete-cine-page-header p{font-family:var(--ff-mono);font-size:12px;
-  text-transform:uppercase;letter-spacing:0.15em;color:rgba(245,241,232,0.55);margin:0;}
-
-.movete-cartelera{max-width:1100px;margin:0 auto;padding:40px 24px 80px;}
-
-/* Switch tradicional/alternativo */
-.movete-cine-switch{display:flex;gap:8px;justify-content:center;margin-bottom:48px;
-  flex-wrap:wrap;}
-.movete-cine-switch a{font-family:var(--ff-mono);font-size:12px;font-weight:700;
-  text-transform:uppercase;letter-spacing:0.08em;padding:10px 20px;
-  border:1px solid var(--border);border-radius:999px;text-decoration:none;
-  color:var(--ink);transition:all .15s ease;}
-.movete-cine-switch a:hover,.movete-cine-switch a.activo{background:var(--ink);
-  color:var(--paper);border-color:var(--ink);}
-
-/* Cabecera de cada grupo */
-.movete-cine-grupo{margin-bottom:64px;scroll-margin-top:80px;}
-.movete-grupo-head{margin-bottom:32px;border-bottom:2px solid var(--ink);
-  padding-bottom:12px;}
-.movete-grupo-head h2{font-size:clamp(28px,5vw,44px);margin:0;}
-.movete-grupo-head p{font-family:var(--ff-mono);font-size:12px;color:var(--muted);
-  text-transform:uppercase;letter-spacing:0.1em;margin:6px 0 0;}
-
-/* --- Cine tradicional (cartelera) --- */
-.movete-cine{margin-bottom:48px;}
-.movete-cine-title{font-size:clamp(24px,4vw,36px);margin:0 0 4px;}
-.movete-cine-direccion{font-family:var(--ff-mono);font-size:11px;
-  text-transform:uppercase;letter-spacing:0.12em;color:var(--muted);margin:0 0 24px;}
-.movete-pelicula-grid{display:flex;flex-direction:column;gap:16px;}
-.movete-pelicula{display:grid;grid-template-columns:90px 1fr;gap:18px;
-  align-items:start;padding:18px;background:#fff;border-radius:var(--r);
-  border:1px solid var(--border);box-shadow:var(--shadow);}
-.movete-pelicula-poster{width:90px;height:135px;object-fit:cover;border-radius:2px;
-  display:block;background:var(--cat-cine);}
-.movete-pelicula-info{display:flex;flex-direction:column;gap:8px;}
-.movete-pelicula-titulo{font-family:var(--ff-serif);font-size:20px;font-weight:700;
-  margin:0;line-height:1.2;}
-.movete-pelicula-ficha{font-family:var(--ff-mono);font-size:11px;color:var(--muted);
-  margin:0;letter-spacing:0.03em;}
-.movete-pelicula-meta{font-family:var(--ff-mono);font-size:11px;color:var(--muted);
-  text-transform:uppercase;letter-spacing:0.06em;margin:0;display:flex;gap:10px;
-  flex-wrap:wrap;align-items:center;}
-.movete-pelicula-sinopsis{font-size:14px;line-height:1.5;margin:0;
-  color:rgba(14,13,16,0.72);max-width:60ch;}
-.movete-pelicula-badge{display:inline-block;font-family:var(--ff-mono);font-size:9px;
-  font-weight:700;text-transform:uppercase;letter-spacing:0.1em;padding:2px 7px;
-  border-radius:2px;border:1px solid var(--accent);color:var(--accent);}
-.movete-pelicula-funciones{list-style:none;padding:0;margin:4px 0 0;display:flex;
-  flex-wrap:wrap;gap:8px;}
-.movete-pelicula-funciones li{background:var(--ink);color:var(--paper);
-  font-family:var(--ff-mono);font-size:13px;font-weight:700;padding:5px 12px;
-  border-radius:2px;letter-spacing:0.05em;}
-
-/* --- Cine alternativo (agenda) --- */
-.movete-alt-dia{margin-bottom:36px;}
-.movete-alt-fecha{font-family:var(--ff-mono);font-size:13px;font-weight:700;
-  text-transform:uppercase;letter-spacing:0.12em;color:var(--accent);
-  border-bottom:1px solid var(--border);padding-bottom:8px;margin:0 0 8px;}
-.movete-event-item{display:grid;grid-template-columns:70px 1fr;gap:18px;
-  align-items:start;padding:16px 0;border-bottom:1px solid var(--border);}
-.movete-event-item .hora{font-family:var(--ff-mono);font-size:20px;font-weight:700;
-  display:block;line-height:1;}
-.movete-event-title{font-family:var(--ff-serif);font-size:19px;font-weight:700;
-  line-height:1.2;margin:0 0 4px;}
-.movete-event-meta{font-family:var(--ff-mono);font-size:11px;color:var(--muted);
-  text-transform:uppercase;letter-spacing:0.08em;}
-
-.movete-cine-vacio{font-family:var(--ff-mono);font-size:13px;color:var(--muted);
-  padding:24px 0;}
-
-/* Footer */
-.movete-foot{background:var(--ink);color:rgba(245,241,232,0.6);
-  font-family:var(--ff-mono);font-size:11px;text-transform:uppercase;
-  letter-spacing:0.08em;text-align:center;padding:32px 24px;}
-.movete-foot p{margin:0 0 8px;}
-.movete-foot-fuente{text-transform:none;letter-spacing:0;font-size:10px;
-  color:rgba(245,241,232,0.4);max-width:600px;margin:8px auto 0;}
-
-@media(max-width:768px){
-  .movete-pelicula{grid-template-columns:64px 1fr;gap:12px;padding:14px;}
-  .movete-pelicula-poster{width:64px;height:96px;}
-  .movete-pelicula-titulo{font-size:16px;}
-  .movete-cartelera{padding:32px 16px 60px;}
-}
+</html>
 """
