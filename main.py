@@ -47,11 +47,7 @@ def _cargar_json(path: str | Path, default):
 
 
 def enriquecer_con_tmdb(tradicional: list[dict], cache_path: Path):
-    """Adjunta a cada película un campo 'tmdb' con datos de TMDb o None.
-
-    Blindado: ante cualquier problema, la película queda sin datos y la página
-    se genera igual con placeholder.
-    """
+    """Adjunta a cada película un campo 'tmdb' con datos de TMDb o None."""
 
     if not tmdb.disponible():
         print("[main] Sin TMDB_API_KEY: se usa placeholder en todos los pósters.", file=sys.stderr)
@@ -118,13 +114,13 @@ def main() -> None:
 
     try:
         tradicional = scrapear_cine_tradicional()
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         print(f"[main] Pata tradicional falló: {e}", file=sys.stderr)
         tradicional = []
 
     try:
         alternativo = scrapear_cine_alternativo(desde=jueves, dias=7)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         print(f"[main] Pata alternativa falló: {e}", file=sys.stderr)
         alternativo = []
 

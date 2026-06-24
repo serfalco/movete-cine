@@ -1,16 +1,4 @@
-"""Cliente mínimo de TMDb para MoVeTe Cine.
-
-Requiere la variable de entorno:
-
-TMDB_API_KEY
-
-Devuelve datos pequeños para renderizar:
-- poster
-- sinopsis
-- año
-- duración
-- géneros
-"""
+"""Cliente mínimo de TMDb para MoVeTe Cine."""
 
 from __future__ import annotations
 
@@ -36,8 +24,6 @@ def disponible() -> bool:
 
 
 def limpiar_titulo(titulo: str) -> str:
-    """Normaliza un título para usar como clave de caché."""
-
     titulo = str(titulo or "").strip().lower()
     titulo = unicodedata.normalize("NFKD", titulo)
     titulo = "".join(c for c in titulo if not unicodedata.combining(c))
@@ -67,7 +53,7 @@ def _get(path: str, params: dict[str, Any] | None = None) -> dict[str, Any] | No
             r = requests.get(f"{BASE}{path}", params=params, timeout=TIMEOUT)
         r.raise_for_status()
         return r.json()
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:
         print(f"[tmdb] Error GET {path}: {e}", file=sys.stderr)
         return None
 
@@ -79,7 +65,7 @@ def _poster_url(path: str | None) -> str | None:
 
 
 def _detalle(movie_id: int) -> dict[str, Any] | None:
-    return _get(f"/movie/{movie_id}")
+    return _get(f"/movie/{movie_id}", {})
 
 
 def _elegir_resultado(resultados: list[dict[str, Any]], clave: str) -> dict[str, Any] | None:
@@ -96,8 +82,6 @@ def _elegir_resultado(resultados: list[dict[str, Any]], clave: str) -> dict[str,
 
 
 def buscar_pelicula(titulo: str, alias: dict[str, str] | None = None) -> dict[str, Any] | None:
-    """Busca una película por título y devuelve un diccionario chico."""
-
     if not API_KEY:
         return None
 
@@ -133,14 +117,12 @@ def buscar_pelicula(titulo: str, alias: dict[str, str] | None = None) -> dict[st
         if nombre:
             generos.append(nombre)
 
-    sinopsis = detalle.get("overview") or resultado.get("overview") or ""
-
     return {
         "tmdb_id": resultado.get("id"),
         "titulo": detalle.get("title") or resultado.get("title") or titulo,
         "titulo_original": detalle.get("original_title") or resultado.get("original_title") or "",
         "poster": poster,
-        "sinopsis": sinopsis,
+        "sinopsis": detalle.get("overview") or resultado.get("overview") or "",
         "anio": anio,
         "duracion": detalle.get("runtime"),
         "generos": generos,

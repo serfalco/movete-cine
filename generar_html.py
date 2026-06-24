@@ -12,7 +12,6 @@ MESES = [
 ]
 
 DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
-
 POSTER_PLACEHOLDER = "/assets/img/cine-placeholder.jpg"
 
 
