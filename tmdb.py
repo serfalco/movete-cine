@@ -65,7 +65,12 @@ def _poster_url(path: str | None) -> str | None:
 
 
 def _detalle(movie_id: int) -> dict[str, Any] | None:
-    return _get(f"/movie/{movie_id}", {})
+    return _get(
+        f"/movie/{movie_id}",
+        {
+            "append_to_response": "credits,videos",
+        },
+    )
 
 
 def _elegir_resultado(resultados: list[dict[str, Any]], clave: str) -> dict[str, Any] | None:
@@ -79,6 +84,53 @@ def _elegir_resultado(resultados: list[dict[str, Any]], clave: str) -> dict[str,
             return item
 
     return resultados[0]
+
+
+def _director(detalle: dict[str, Any]) -> str:
+    for persona in detalle.get("credits", {}).get("crew", []):
+        if persona.get("job") == "Director" and persona.get("name"):
+            return persona["name"]
+    return ""
+
+
+def _elenco(detalle: dict[str, Any], limite: int = 3) -> list[str]:
+    nombres = []
+    for persona in detalle.get("credits", {}).get("cast", []):
+        nombre = persona.get("name")
+        if nombre:
+            nombres.append(nombre)
+        if len(nombres) >= limite:
+            break
+    return nombres
+
+
+def _trailer(detalle: dict[str, Any]) -> str:
+    videos = detalle.get("videos", {}).get("results", [])
+
+    candidatos = []
+    for video in videos:
+        if video.get("site") != "YouTube":
+            continue
+        if video.get("type") not in {"Trailer", "Teaser"}:
+            continue
+        if not video.get("key"):
+            continue
+        candidatos.append(video)
+
+    if not candidatos:
+        return ""
+
+    candidatos.sort(key=lambda v: (not bool(v.get("official")), v.get("type") != "Trailer"))
+    return f"https://www.youtube.com/watch?v={candidatos[0]['key']}"
+
+
+def _paises(detalle: dict[str, Any]) -> list[str]:
+    paises = []
+    for pais in detalle.get("production_countries", []):
+        nombre = pais.get("name")
+        if nombre:
+            paises.append(nombre)
+    return paises
 
 
 def buscar_pelicula(titulo: str, alias: dict[str, str] | None = None) -> dict[str, Any] | None:
@@ -127,4 +179,8 @@ def buscar_pelicula(titulo: str, alias: dict[str, str] | None = None) -> dict[st
         "duracion": detalle.get("runtime"),
         "generos": generos,
         "score": resultado.get("vote_average"),
+        "director": _director(detalle),
+        "elenco": _elenco(detalle),
+        "trailer": _trailer(detalle),
+        "paises": _paises(detalle),
     }

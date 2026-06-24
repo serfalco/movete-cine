@@ -41,29 +41,61 @@ def ficha_extra(info: dict | None) -> str:
     if not info:
         return ""
 
-    partes = []
+    facts = []
 
     if info.get("anio"):
-        partes.append(str(info["anio"]))
+        facts.append(f'<span class="movie-fact">🎬 {esc(info["anio"])}</span>')
 
     if info.get("duracion"):
         try:
-            partes.append(f"{int(info['duracion'])} min")
+            facts.append(f'<span class="movie-fact">⏱ {int(info["duracion"])} min</span>')
         except (TypeError, ValueError):
             pass
 
     if info.get("generos"):
-        partes.append(" · ".join(info["generos"]))
+        facts.append(f'<span class="movie-fact">🎭 {esc(" · ".join(info["generos"]))}</span>')
 
-    if not partes:
+    if info.get("paises"):
+        facts.append(f'<span class="movie-fact">🌎 {esc(" · ".join(info["paises"][:2]))}</span>')
+
+    if info.get("score") not in (None, ""):
+        try:
+            score = float(info["score"])
+            if score > 0:
+                facts.append(f'<span class="movie-fact">⭐ {score:.1f}/10</span>')
+        except (TypeError, ValueError):
+            pass
+
+    if not facts:
         return ""
 
-    return f'<p class="event-meta">{esc(" · ".join(partes))}</p>'
+    return f'<p class="event-meta movie-facts">{" ".join(facts)}</p>'
+
+
+def creditos_html(info: dict | None) -> str:
+    if not info:
+        return ""
+
+    partes = []
+
+    if info.get("director"):
+        partes.append(f'<p class="movie-credit"><strong>Dir:</strong> {esc(info["director"])}</p>')
+
+    if info.get("elenco"):
+        partes.append(f'<p class="movie-credit"><strong>Elenco:</strong> {esc(" · ".join(info["elenco"]))}</p>')
+
+    return "".join(partes)
 
 
 def sinopsis_html(info: dict | None) -> str:
     if info and info.get("sinopsis"):
         return f'<p>{esc(info["sinopsis"])}</p>'
+    return ""
+
+
+def trailer_html(info: dict | None) -> str:
+    if info and info.get("trailer"):
+        return f'<p><a class="button small trailer-button" href="{esc(info["trailer"])}" target="_blank" rel="noopener">▶ Ver trailer</a></p>'
     return ""
 
 
@@ -95,7 +127,9 @@ def bloque_tradicional(cines: list[dict]) -> str:
                     <h3>{esc(peli.get('titulo'))}</h3>
                     {ficha_extra(info)}
                     <div class="pill-row">{meta_badges(peli.get('idioma', ''), peli.get('formato', ''))}</div>
+                    {creditos_html(info)}
                     {sinopsis_html(info)}
+                    {trailer_html(info)}
                     <ul class="times">{horarios_html}</ul>
                   </div>
                 </article>
