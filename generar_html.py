@@ -212,15 +212,16 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Cartelera de cine en La Plata · Semana del {esc(rango)} · MoVeTe</title>
-  <meta name="description" content="Cartelera de cine en La Plata. Cine tradicional y cine alternativo. Edición semanal del {esc(rango)}.">
+  <meta name="description" content="Cartelera de cine en La Plata para encontrar tu función: salas, cineclubes y funciones especiales. Edición semanal del {esc(rango)}.">
   <link rel="stylesheet" href="/assets/css/movete.css">
 </head>
 
-<body>
+<body id="top">
   <header class="site-header">
     <a class="brand" href="/">MoVeTe<span>●</span></a>
-    <nav>
-      <a href="/cine/">Cine</a>
+    <nav class="site-nav" aria-label="Secciones principales">
+      <a href="/">Inicio</a>
+      <a href="/cine/" aria-current="page">Cine</a>
       <a href="/en-vivo/">En vivo</a>
     </nav>
   </header>
@@ -229,29 +230,30 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
     <section class="hero compact">
       <p class="eyebrow">Cine · Edición {esc(fecha_iso)}</p>
       <h1>Cartelera de cine en La Plata</h1>
-      <p class="lead">Cada semana, todo el cine de la ciudad.</p>
-      <div class="actions">
+      <p class="lead">Películas en salas, ciclos, cineclubes y funciones especiales para encontrar tu función y armar plan.</p>
+      <div class="actions quick-nav">
         <a class="button" href="#cine-tradicional">Cine tradicional</a>
         <a class="button secondary" href="#cine-alternativo">Cine alternativo</a>
+        <button class="button small" type="button" data-share-page>Compartir</button>
       </div>
     </section>
 
     <section class="card edition-summary">
-      <h2>{total_peliculas} películas en salas tradicionales y {total_alt} funciones en salas alternativas.</h2>
-      <p>MoVeTe · Cartelera Cultural del Gran La Plata · Edición {esc(fecha_iso)}</p>
+      <h2>{total_peliculas} películas en salas comerciales y {total_alt} funciones alternativas.</h2>
+      <p>Tu mapa rápido de cine para la semana. Revisá sala, día y horario antes de salir.</p>
     </section>
 
     <section id="cine-tradicional" class="section">
-      <p class="eyebrow">Cartelera comercial</p>
-      <h2>Cine tradicional</h2>
-      <p>Salas comerciales de La Plata. Confirmá siempre el horario con el cine antes de salir.</p>
+      <p class="eyebrow">Salas comerciales</p>
+      <h2>Cine en salas</h2>
+      <p>Funciones publicadas por los cines de la ciudad. Elegí película, avisá y confirmá disponibilidad con la sala.</p>
       {trad}
     </section>
 
     <section id="cine-alternativo" class="section">
       <p class="eyebrow">Cineclubes y espacios culturales</p>
       <h2>Cine alternativo</h2>
-      <p>Ciclos, funciones especiales, INCAA, proyecciones y cineclubes.</p>
+      <p>Ciclos, espacios INCAA, proyecciones especiales y cineclubes para moverte por fuera del circuito de siempre.</p>
       {alt}
     </section>
 
@@ -264,16 +266,35 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
 
     <section class="card">
       <p class="tag">También en MoVeTe</p>
-      <h2>Agenda de espectáculos en La Plata</h2>
-      <p>Teatro, música, stand up, danza y eventos en vivo de la semana.</p>
-      <a href="/en-vivo/">Ver En Vivo →</a>
+      <h2>Cartelera en vivo en La Plata</h2>
+      <p>Teatro, música, stand up, danza, talleres y propuestas para compartir, cruzarte y encontrarte.</p>
+      <a href="/en-vivo/">Ver cartelera en vivo →</a>
     </section>
   </main>
 
   <footer class="site-footer">
-    <p>MoVeTe · Cartelera Cultural del Gran La Plata · Edición {esc(fecha_iso)}</p>
-    <p>Información de películas y afiches: The Movie Database (TMDb). Este producto usa la API de TMDb pero no está avalado ni certificado por TMDb.</p>
+    <div class="footer-inner">
+      <div>
+        <p class="footer-title">MoVeTe.info</p>
+        <p>Cartelera de cine en La Plata · Edición {esc(fecha_iso)}</p>
+        <p>Información de películas y afiches: The Movie Database (TMDb). Este producto usa la API de TMDb pero no está avalado ni certificado por TMDb.</p>
+      </div>
+      <div class="footer-links" aria-label="Links del pie">
+        <a href="#top">Arriba</a>
+        <a href="#cine-tradicional">Cine en salas</a>
+        <a href="#cine-alternativo">Cine alternativo</a>
+        <a href="/en-vivo/">En vivo</a>
+        <button type="button" data-share-page>Compartir</button>
+      </div>
+    </div>
   </footer>
+  <nav class="mobile-nav" aria-label="Navegación rápida">
+    <a href="/">Inicio</a>
+    <a href="/cine/" aria-current="page">Cine</a>
+    <a href="/en-vivo/">En vivo</a>
+    <button type="button" data-share-page>Compartir</button>
+  </nav>
+  <script src="/assets/js/movete.js" defer></script>
 </body>
 </html>
 """
