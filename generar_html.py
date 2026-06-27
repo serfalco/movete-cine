@@ -244,9 +244,6 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
     alt = bloque_alternativo(funciones_alternativo)
     salas_nav = nav_salas(cines_tradicional)
 
-    total_peliculas = sum(len(c.get("peliculas", [])) for c in cines_tradicional)
-    total_alt = len(funciones_alternativo)
-
     return f"""<!doctype html>
 <html lang="es-AR">
 <head>
@@ -271,17 +268,11 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
     <section class="hero compact">
       <p class="eyebrow">Cine · Edición {esc(fecha_iso)}</p>
       <h1>Cartelera de cine en La Plata</h1>
-      <p class="lead">Películas en salas, ciclos, cineclubes y funciones especiales para encontrar tu función y armar plan.</p>
       <div class="actions quick-nav">
         <a class="button" href="#cine-tradicional">Cine en salas</a>
         <a class="button secondary" href="#cine-alternativo">Cine alternativo</a>
         <button class="button small" type="button" data-share-page>Compartir</button>
       </div>
-    </section>
-
-    <section class="card edition-summary">
-      <h2>{total_peliculas} películas en salas comerciales y {total_alt} funciones alternativas.</h2>
-      <p>Tu mapa rápido de cine para la semana. Revisá sala, día y horario antes de salir.</p>
     </section>
 
     <section id="cine-tradicional" class="section">
@@ -294,7 +285,6 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
     <section id="cine-alternativo" class="section">
       <p class="eyebrow">Cineclubes y espacios culturales</p>
       <h2>Cine alternativo</h2>
-      <p>Ciclos, espacios INCAA, proyecciones especiales y cineclubes para moverte por fuera del circuito de siempre.</p>
       {alt}
     </section>
 
@@ -308,16 +298,16 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
     <section class="card">
       <p class="tag">También en MoVeTe</p>
       <h2>Cartelera en vivo en La Plata</h2>
-      <p>Teatro, música, stand up, danza, talleres y propuestas para compartir, cruzarte y encontrarte.</p>
       <a href="/en-vivo/">Ver cartelera en vivo →</a>
     </section>
+
+    <p class="site-notice">La info puede cambiar. Confirmá horarios y disponibilidad con cada sala o espacio; reservá o sacá entradas según corresponda.</p>
   </main>
 
   <footer class="site-footer">
     <div class="footer-inner">
       <div>
         <p class="footer-title">MoVeTe.info</p>
-        <p>Cartelera de cine en La Plata · Edición {esc(fecha_iso)}</p>
         <p>Información de películas y afiches: The Movie Database (TMDb). Este producto usa la API de TMDb pero no está avalado ni certificado por TMDb.</p>
       </div>
       <div class="footer-links" aria-label="Links del pie">
