@@ -271,7 +271,7 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
       <div class="actions quick-nav">
         <a class="button" href="#cine-tradicional">Cine en salas</a>
         <a class="button secondary" href="#cine-alternativo">Cine alternativo</a>
-        <button class="button small" type="button" data-share-page>Compartir</button>
+        <button class="button small" type="button" data-share-page><img class="share-icon" src="/assets/icons/whatsapp.svg" alt="">Compartir</button>
       </div>
     </section>
 
@@ -315,7 +315,7 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
         <a href="#cine-tradicional">Cine en salas</a>
         <a href="#cine-alternativo">Cine alternativo</a>
         <a href="/en-vivo/">En vivo</a>
-        <button type="button" data-share-page>Compartir</button>
+        <button type="button" data-share-page><img class="share-icon" src="/assets/icons/whatsapp.svg" alt="">Compartir</button>
       </div>
     </div>
   </footer>
@@ -323,7 +323,7 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
     <a href="/">Inicio</a>
     <a href="/cine/" aria-current="page">Cine</a>
     <a href="/en-vivo/">En vivo</a>
-    <button type="button" data-share-page>Compartir</button>
+    <button type="button" data-share-page><img class="share-icon" src="/assets/icons/whatsapp.svg" alt="">Compartir</button>
   </nav>
   <script src="/assets/js/movete.js" defer></script>
 </body>
