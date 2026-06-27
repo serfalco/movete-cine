@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 import html
+import json
+import unicodedata
 from collections import defaultdict
 from datetime import datetime, timedelta
+from pathlib import Path
+from urllib.parse import quote_plus
 
 MESES = [
     "enero", "febrero", "marzo", "abril", "mayo", "junio",
@@ -14,6 +18,8 @@ MESES = [
 DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
 
 POSTER_PLACEHOLDER = "/assets/img/cine-placeholder.jpg"
+ESPACIOS_PATH = Path(__file__).with_name("espacios_cine.json")
+_ESPACIOS_CACHE: dict[str, dict] | None = None
 
 
 def esc(valor: object) -> str:
@@ -58,6 +64,47 @@ def slugify(valor: str) -> str:
     return "".join(limpio).strip("-") or "sala"
 
 
+def clave_espacio(valor: str) -> str:
+    texto = unicodedata.normalize("NFKD", str(valor or "").casefold())
+    return "".join(char for char in texto if char.isalnum() and not unicodedata.combining(char))
+
+
+def catalogo_espacios() -> dict[str, dict]:
+    global _ESPACIOS_CACHE
+    if _ESPACIOS_CACHE is not None:
+        return _ESPACIOS_CACHE
+
+    catalogo: dict[str, dict] = {}
+    try:
+        data = json.loads(ESPACIOS_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        data = {"espacios": []}
+
+    for espacio in data.get("espacios", []):
+        nombres = [espacio.get("nombre", ""), *espacio.get("aliases", [])]
+        for nombre in nombres:
+            clave = clave_espacio(nombre)
+            if clave:
+                catalogo[clave] = espacio
+
+    _ESPACIOS_CACHE = catalogo
+    return catalogo
+
+
+def datos_espacio(nombre: str) -> dict:
+    original = str(nombre or "").strip() or "La Plata"
+    espacio = catalogo_espacios().get(clave_espacio(original))
+    if not espacio:
+        return {"nombre": original, "direccion": "", "maps": ""}
+
+    direccion = str(espacio.get("direccion", "")).strip()
+    return {
+        "nombre": str(espacio.get("nombre", original)).strip(),
+        "direccion": direccion,
+        "maps": f"https://www.google.com/maps/search/?api=1&query={quote_plus(direccion)}" if direccion else "",
+    }
+
+
 def nombre_sala(cine: str) -> str:
     nombre = str(cine or "").strip()
     for prefijo in ("Cinema ", "Cine "):
@@ -74,7 +121,7 @@ def nav_salas(cines: list[dict]) -> str:
             links.append(f'<a class="filter-button" href="#sala-{slugify(nombre)}">{esc(nombre)}</a>')
     if not links:
         return ""
-    return f'<div class="pill-row filter-bar sala-nav" aria-label="Salas comerciales">{"".join(links)}</div>'
+    return f'<div class="pill-row filter-bar sala-nav" aria-label="Tradicional">{"".join(links)}</div>'
 
 
 def ficha_extra(info: dict | None) -> str:
@@ -139,15 +186,17 @@ def trailer_html(info: dict | None) -> str:
     return ""
 
 
-def poster_url(info: dict | None) -> str:
+def imagen_cine(info: dict | None) -> tuple[str, str]:
+    if info and info.get("backdrop"):
+        return esc(info["backdrop"]), ""
     if info and info.get("poster"):
-        return esc(info["poster"])
-    return POSTER_PLACEHOLDER
+        return esc(info["poster"]), " portrait-fallback"
+    return POSTER_PLACEHOLDER, " portrait-fallback"
 
 
 def bloque_tradicional(cines: list[dict]) -> str:
     if not cines:
-        return '<p class="empty">Esta semana no hay cartelera comercial disponible.</p>'
+        return '<p class="empty">Esta semana no hay funciones tradicionales.</p>'
 
     bloques = []
 
@@ -158,12 +207,13 @@ def bloque_tradicional(cines: list[dict]) -> str:
             info = peli.get("tmdb")
             horarios = peli.get("horarios", [])
             horarios_html = "".join(f"<li>{esc(h)}</li>" for h in horarios)
+            imagen_url, imagen_clase = imagen_cine(info)
 
             peliculas.append(
                 f"""
                 <article class="movie-card">
-                  <img class="movie-poster" src="{poster_url(info)}" alt="Afiche de {esc(peli.get('titulo'))}" loading="lazy">
-                  <div>
+                  <img class="movie-backdrop{imagen_clase}" src="{imagen_url}" alt="Imagen de {esc(peli.get('titulo'))}" loading="lazy">
+                  <div class="movie-card-body">
                     <h3>{esc(peli.get('titulo'))}</h3>
                     {ficha_extra(info)}
                     <div class="pill-row">{meta_badges(peli.get('idioma', ''), peli.get('formato', ''))}</div>
@@ -193,7 +243,7 @@ def bloque_tradicional(cines: list[dict]) -> str:
 
 def bloque_alternativo(funciones: list[dict]) -> str:
     if not funciones:
-        return '<p class="empty">Esta semana no hay funciones alternativas cargadas.</p>'
+        return '<p class="empty">Esta semana no hay funciones alternativas.</p>'
 
     por_fecha: dict[str, list[dict]] = defaultdict(list)
 
@@ -212,13 +262,30 @@ def bloque_alternativo(funciones: list[dict]) -> str:
         cards = []
 
         for funcion in sorted(por_fecha[fecha], key=lambda x: x.get("hora", "")):
+            espacio = datos_espacio(funcion.get("espacio", ""))
+            direccion = ""
+            if espacio["direccion"]:
+                direccion = (
+                    f'<a class="map-link" href="{esc(espacio["maps"])}" target="_blank" '
+                    f'rel="noopener" aria-label="Cómo llegar a {esc(espacio["nombre"])} en Google Maps">'
+                    '<img class="map-icon" src="/assets/icons/google-maps.svg" alt="">'
+                    '<span class="map-copy">'
+                    '<span class="map-label">Cómo llegar</span>'
+                    f'<span class="map-address">{esc(espacio["direccion"])}</span>'
+                    '</span></a>'
+                )
             cards.append(
                 f"""
-                <article class="event-card">
-                  <p class="event-date">{esc(funcion.get('hora'))} hs</p>
+                <article class="event-card independent-cinema-card">
+                  <div class="independent-card-topline">
+                    <p class="event-date">{esc(funcion.get('hora'))} hs</p>
+                    <span class="pill">Alternativo</span>
+                  </div>
                   <h3>{esc(funcion.get('titulo'))}</h3>
-                  <p class="event-meta">{esc(funcion.get('espacio'))}</p>
-                  <p class="pill">Cine alternativo</p>
+                  <div class="independent-venue">
+                    <p class="venue-name">{esc(espacio['nombre'])}</p>
+                    {direccion}
+                  </div>
                 </article>
                 """
             )
@@ -269,30 +336,28 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
       <p class="eyebrow">Cine · Edición {esc(fecha_iso)}</p>
       <h1>Cartelera de cine en La Plata</h1>
       <div class="actions quick-nav">
-        <a class="button" href="#cine-tradicional">Cine en salas</a>
-        <a class="button secondary" href="#cine-alternativo">Cine alternativo</a>
+        <a class="button" href="#cine-tradicional">Tradicional</a>
+        <a class="button secondary" href="#cine-alternativo">Alternativo</a>
         <button class="button small" type="button" data-share-page><img class="share-icon" src="/assets/icons/whatsapp.svg" alt="">Compartir</button>
       </div>
     </section>
 
+    <section class="ad-box cinema-sponsor">
+      <p class="ad-label">Espacio promocional</p>
+      <h2>Tres Empanadas Comedia</h2>
+      <p>Stand up en La Plata. Shows a la gorra, todos los viernes.</p>
+      <a class="button small" href="https://tresempanadas.com.ar/reservas">Reservar</a>
+    </section>
+
     <section id="cine-tradicional" class="section">
-      <p class="eyebrow">Salas comerciales</p>
-      <h2>Cine en salas</h2>
+      <h2>Tradicional</h2>
       {salas_nav}
       {trad}
     </section>
 
     <section id="cine-alternativo" class="section">
-      <p class="eyebrow">Cineclubes y espacios culturales</p>
-      <h2>Cine alternativo</h2>
+      <h2>Alternativo</h2>
       {alt}
-    </section>
-
-    <section class="ad-box">
-      <p class="ad-label">Espacio promocional</p>
-      <h2>Tres Empanadas Comedia</h2>
-      <p>Stand up en La Plata. Shows a la gorra, todos los viernes.</p>
-      <a class="button small" href="https://tresempanadas.com.ar/reservas">Reservar</a>
     </section>
 
     <section class="card">
@@ -312,8 +377,8 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
       </div>
       <div class="footer-links" aria-label="Links del pie">
         <a href="#top">Arriba</a>
-        <a href="#cine-tradicional">Cine en salas</a>
-        <a href="#cine-alternativo">Cine alternativo</a>
+        <a href="#cine-tradicional">Tradicional</a>
+        <a href="#cine-alternativo">Alternativo</a>
         <a href="/en-vivo/">En vivo</a>
         <button type="button" data-share-page><img class="share-icon" src="/assets/icons/whatsapp.svg" alt="">Compartir</button>
       </div>

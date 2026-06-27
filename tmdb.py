@@ -15,6 +15,7 @@ import requests
 API_KEY = os.environ.get("TMDB_API_KEY", "").strip()
 BASE = "https://api.themoviedb.org/3"
 IMG_BASE = "https://image.tmdb.org/t/p/w342"
+BACKDROP_BASE = "https://image.tmdb.org/t/p/w780"
 LANG = "es-AR"
 TIMEOUT = 20
 
@@ -62,6 +63,12 @@ def _poster_url(path: str | None) -> str | None:
     if not path:
         return None
     return f"{IMG_BASE}{path}"
+
+
+def _backdrop_url(path: str | None) -> str | None:
+    if not path:
+        return None
+    return f"{BACKDROP_BASE}{path}"
 
 
 def _detalle(movie_id: int) -> dict[str, Any] | None:
@@ -160,6 +167,7 @@ def buscar_pelicula(titulo: str, alias: dict[str, str] | None = None) -> dict[st
     detalle = _detalle(int(resultado["id"])) or {}
 
     poster = _poster_url(detalle.get("poster_path") or resultado.get("poster_path"))
+    backdrop = _backdrop_url(detalle.get("backdrop_path") or resultado.get("backdrop_path"))
     estreno = detalle.get("release_date") or resultado.get("release_date") or ""
     anio = estreno[:4] if estreno else ""
 
@@ -174,6 +182,7 @@ def buscar_pelicula(titulo: str, alias: dict[str, str] | None = None) -> dict[st
         "titulo": detalle.get("title") or resultado.get("title") or titulo,
         "titulo_original": detalle.get("original_title") or resultado.get("original_title") or "",
         "poster": poster,
+        "backdrop": backdrop,
         "sinopsis": detalle.get("overview") or resultado.get("overview") or "",
         "anio": anio,
         "duracion": detalle.get("runtime"),

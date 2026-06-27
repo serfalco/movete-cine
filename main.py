@@ -64,7 +64,11 @@ def enriquecer_con_tmdb(tradicional: list[dict], cache_path: Path):
             titulo = peli.get("titulo", "")
             clave = tmdb.limpiar_titulo(titulo)
 
-            if clave in cache:
+            cache_actualizado = clave in cache and (
+                cache[clave] is None or "backdrop" in cache[clave]
+            )
+
+            if cache_actualizado:
                 peli["tmdb"] = cache[clave]
                 if cache[clave]:
                     encontrados += 1

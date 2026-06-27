@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "espacios": [
+    {
+      "nombre": "Asociación de Jubilados y Pensionados de la Caja de Previsión Social para Abogados de la Prov. de Bs. As.",
+      "direccion": "Av. 13 N° 831/833, piso 6, La Plata, Buenos Aires",
+      "aliases": [
+        "Asociación de Jubilados y Pensionados de la Caja de Previsión Social para Abogados de la Prov de Bs"
+      ]
+    },
+    {
+      "nombre": "Centro de Capacitación, Información e Investigación Educativa (CIIE)",
+      "direccion": "Calle 57 N° 670, entre 8 y 9, La Plata, Buenos Aires",
+      "aliases": ["CIIE"]
+    },
+    {
+      "nombre": "Cine Club Proyecciones Terrestres",
+      "direccion": "Calle 3, entre 66 y 67, Timbre 3, La Plata, Buenos Aires",
+      "aliases": ["Proyecciones Terrestres"]
+    },
+    {
+      "nombre": "Cine Ecoselect (Espacio INCAA)",
+      "direccion": "Calle 50 N° 1200, Centro Cultural Islas Malvinas, La Plata, Buenos Aires",
+      "aliases": ["Cine Ecoselect", "EcoSelect", "Cine Eco Select"]
+    },
+    {
+      "nombre": "Cine Select (Espacio INCAA)",
+      "direccion": "Calle 50, entre 6 y 7, Centro Cultural Pasaje Dardo Rocha, piso 1, La Plata, Buenos Aires",
+      "aliases": ["Cine Select", "Select Espacio INCAA"]
+    },
+    {
+      "nombre": "Desafinado Club",
+      "direccion": "Diagonal 93 N° 52, City Bell, Buenos Aires",
+      "aliases": ["Desafinado"]
+    },
+    {
+      "nombre": "Espacio Satélite",
+      "direccion": "Calle 6 N° 1030, entre 53 y 54, Club Español, La Plata, Buenos Aires",
+      "aliases": ["Espacio Satelite"]
+    },
+    {
+      "nombre": "La Maga Club de Arte",
+      "direccion": "Calle 1 N° 177, entre 35 y 36, La Plata, Buenos Aires",
+      "aliases": ["La Maga Club De Arte", "La Maga"]
+    },
+    {
+      "nombre": "Refugio 62",
+      "direccion": "Calle 10 esquina 62, La Plata, Buenos Aires",
+      "aliases": []
+    },
+    {
+      "nombre": "Teatro Bar Cultural La Ferretería",
+      "direccion": "Calle 57 N° 827/829, entre 11 y 12, La Plata, Buenos Aires",
+      "aliases": ["La Ferretería", "La Ferreteria"]
+    },
+    {
+      "nombre": "Teatro El Altillo del Sur",
+      "direccion": "Calle 1 N° 1693, casi esquina 67, La Plata, Buenos Aires",
+      "aliases": ["El Altillo del Sur"]
+    }
+  ]
+}
