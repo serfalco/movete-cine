@@ -37,6 +37,46 @@ def meta_badges(idioma: str, formato: str) -> str:
     return "".join(badges)
 
 
+def slugify(valor: str) -> str:
+    texto = (valor or "").lower()
+    reemplazos = {
+        "á": "a",
+        "é": "e",
+        "í": "i",
+        "ó": "o",
+        "ú": "u",
+        "ñ": "n",
+    }
+    for origen, destino in reemplazos.items():
+        texto = texto.replace(origen, destino)
+    limpio = []
+    for char in texto:
+        if char.isalnum():
+            limpio.append(char)
+        elif limpio and limpio[-1] != "-":
+            limpio.append("-")
+    return "".join(limpio).strip("-") or "sala"
+
+
+def nombre_sala(cine: str) -> str:
+    nombre = str(cine or "").strip()
+    for prefijo in ("Cinema ", "Cine "):
+        if nombre.lower().startswith(prefijo.lower()):
+            return nombre[len(prefijo):].strip()
+    return nombre
+
+
+def nav_salas(cines: list[dict]) -> str:
+    links = []
+    for cine in cines:
+        nombre = nombre_sala(cine.get("cine", ""))
+        if nombre:
+            links.append(f'<a class="filter-button" href="#sala-{slugify(nombre)}">{esc(nombre)}</a>')
+    if not links:
+        return ""
+    return f'<div class="pill-row filter-bar sala-nav" aria-label="Salas comerciales">{"".join(links)}</div>'
+
+
 def ficha_extra(info: dict | None) -> str:
     if not info:
         return ""
@@ -138,8 +178,8 @@ def bloque_tradicional(cines: list[dict]) -> str:
 
         bloques.append(
             f"""
-            <section class="day-block">
-              <h2>{esc(cine.get('cine'))}</h2>
+            <section class="day-block" id="sala-{slugify(nombre_sala(cine.get('cine', '')))}">
+              <h2>{esc(nombre_sala(cine.get('cine')))}</h2>
               <p class="event-meta">{esc(cine.get('direccion'))}</p>
               <div class="movie-list">
                 {''.join(peliculas)}
@@ -202,6 +242,7 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
     fecha_iso = jueves.strftime("%Y-%m-%d")
     trad = bloque_tradicional(cines_tradicional)
     alt = bloque_alternativo(funciones_alternativo)
+    salas_nav = nav_salas(cines_tradicional)
 
     total_peliculas = sum(len(c.get("peliculas", [])) for c in cines_tradicional)
     total_alt = len(funciones_alternativo)
@@ -232,7 +273,7 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
       <h1>Cartelera de cine en La Plata</h1>
       <p class="lead">Películas en salas, ciclos, cineclubes y funciones especiales para encontrar tu función y armar plan.</p>
       <div class="actions quick-nav">
-        <a class="button" href="#cine-tradicional">Cine tradicional</a>
+        <a class="button" href="#cine-tradicional">Cine en salas</a>
         <a class="button secondary" href="#cine-alternativo">Cine alternativo</a>
         <button class="button small" type="button" data-share-page>Compartir</button>
       </div>
@@ -246,7 +287,7 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
     <section id="cine-tradicional" class="section">
       <p class="eyebrow">Salas comerciales</p>
       <h2>Cine en salas</h2>
-      <p>Funciones publicadas por los cines de la ciudad. Elegí película, avisá y confirmá disponibilidad con la sala.</p>
+      {salas_nav}
       {trad}
     </section>
 
