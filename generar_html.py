@@ -331,13 +331,16 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
     </nav>
   </header>
 
+  <nav class="section-jump-nav" aria-label="Navegación de cine">
+    <a href="#cine-tradicional">Tradicional</a>
+    <a href="#cine-alternativo">Alternativo</a>
+  </nav>
+
   <main>
     <section class="hero compact">
       <p class="eyebrow">Cine · Edición {esc(fecha_iso)}</p>
       <h1>Cartelera de cine en La Plata</h1>
       <div class="actions quick-nav">
-        <a class="button" href="#cine-tradicional">Tradicional</a>
-        <a class="button secondary" href="#cine-alternativo">Alternativo</a>
         <button class="button small" type="button" data-share-page><img class="share-icon" src="/assets/icons/whatsapp.svg" alt="">Compartir</button>
       </div>
     </section>
@@ -384,12 +387,6 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
       </div>
     </div>
   </footer>
-  <nav class="mobile-nav" aria-label="Navegación rápida">
-    <a href="/">Inicio</a>
-    <a href="/cine/" aria-current="page">Cine</a>
-    <a href="/en-vivo/">En vivo</a>
-    <button type="button" data-share-page><img class="share-icon" src="/assets/icons/whatsapp.svg" alt="">Compartir</button>
-  </nav>
   <script src="/assets/js/movete.js" defer></script>
 </body>
 </html>

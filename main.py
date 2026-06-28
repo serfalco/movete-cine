@@ -46,6 +46,32 @@ def _cargar_json(path: str | Path, default):
         return default
 
 
+def _guardar_json(path: str | Path, data) -> None:
+    destino = Path(path)
+    try:
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        destino.write_text(
+            json.dumps(data, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+    except OSError as e:
+        print(f"[main] No pude guardar respaldo {destino}: {e}", file=sys.stderr)
+
+
+def _alternativo_en_rango(funciones: list[dict], jueves: datetime) -> list[dict]:
+    fin = (jueves + timedelta(days=6)).date()
+    inicio = jueves.date()
+    resultado = []
+    for funcion in funciones:
+        try:
+            fecha = datetime.strptime(funcion.get("fecha", ""), "%Y-%m-%d").date()
+        except (TypeError, ValueError):
+            continue
+        if inicio <= fecha <= fin:
+            resultado.append(funcion)
+    return resultado
+
+
 def enriquecer_con_tmdb(tradicional: list[dict], cache_path: Path):
     """Adjunta a cada película un campo 'tmdb' con datos de TMDb o None."""
 
@@ -127,6 +153,20 @@ def main() -> None:
     except Exception as e:
         print(f"[main] Pata alternativa falló: {e}", file=sys.stderr)
         alternativo = []
+
+    alternativo_cache = out / "alternativo.json"
+    if alternativo:
+        _guardar_json(alternativo_cache, alternativo)
+    else:
+        alternativo = _alternativo_en_rango(
+            _cargar_json(alternativo_cache, []),
+            jueves,
+        )
+        if alternativo:
+            print(
+                f"[main] AgendaLP vacía: se usan {len(alternativo)} funciones del último respaldo válido.",
+                file=sys.stderr,
+            )
 
     if not tradicional and not alternativo:
         print("[main] Ambas fuentes vacías. No se genera página.", file=sys.stderr)
