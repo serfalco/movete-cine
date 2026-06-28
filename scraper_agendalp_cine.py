@@ -88,6 +88,7 @@ def scrapear_cine_alternativo(desde=None, dias=7):
 
     funciones = []
     vistos = set()
+    fallos_consecutivos = 0
     for offset in range(dias):
         dia = desde + timedelta(days=offset)
         try:
@@ -96,6 +97,7 @@ def scrapear_cine_alternativo(desde=None, dias=7):
             if r.status_code != 200:
                 print(f"  genda-cine/{dia}: HTTP {r.status_code}", file=sys.stderr)
                 continue
+            fallos_consecutivos = 0
             for f in _parsear_dia(r.text, dia):
                 clave = (f["titulo"].lower(), f["fecha"], f["hora"],
                          f["espacio"].lower())
@@ -104,6 +106,10 @@ def scrapear_cine_alternativo(desde=None, dias=7):
                     funciones.append(f)
         except requests.RequestException as e:
             print(f"  genda-cine/{dia}: error {e}", file=sys.stderr)
+            fallos_consecutivos += 1
+            if fallos_consecutivos >= 2:
+                print("  genda-cine: fuente inaccesible; se corta el intento diario", file=sys.stderr)
+                break
         time.sleep(0.5)
 
     print(f"  genda-cine: {len(funciones)} funciones en {dias} días",
