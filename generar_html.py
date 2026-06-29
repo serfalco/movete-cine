@@ -345,8 +345,11 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
       </div>
     </section>
 
-    <section class="ad-box cinema-sponsor">
-      <p class="ad-label">Espacio promocional</p>
+    <section class="ad-box sponsor-card">
+      <div class="sponsor-kicker">
+        <img class="sponsor-logo" src="/assets/images/tres-empanadas-comedia.png" alt="">
+        <p class="ad-label">Espacio promocional</p>
+      </div>
       <h2>Tres Empanadas Comedia</h2>
       <p>Stand up en La Plata. Shows a la gorra, todos los viernes.</p>
       <a class="button small" href="https://tresempanadas.com.ar/reservas">Reservar</a>
