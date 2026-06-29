@@ -340,9 +340,6 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
     <section class="hero compact">
       <p class="eyebrow">Cine · Edición {esc(fecha_iso)}</p>
       <h1>Cartelera de cine en La Plata</h1>
-      <div class="actions quick-nav">
-        <button class="button small" type="button" data-share-page><img class="share-icon" src="/assets/icons/whatsapp.svg" alt="">Compartir</button>
-      </div>
     </section>
 
     <section class="ad-box sponsor-card">
@@ -373,22 +370,11 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
     </section>
 
     <p class="site-notice">La info puede cambiar. Confirmá horarios y disponibilidad con cada sala o espacio; reservá o sacá entradas según corresponda.</p>
+    <p class="source-credit">Información de películas y afiches: The Movie Database (TMDb). Este producto usa la API de TMDb pero no está avalado ni certificado por TMDb.</p>
   </main>
 
   <footer class="site-footer">
-    <div class="footer-inner">
-      <div>
-        <p class="footer-title">MoVeTe.info</p>
-        <p>Información de películas y afiches: The Movie Database (TMDb). Este producto usa la API de TMDb pero no está avalado ni certificado por TMDb.</p>
-      </div>
-      <div class="footer-links" aria-label="Links del pie">
-        <a href="#top">Arriba</a>
-        <a href="#cine-tradicional">Tradicional</a>
-        <a href="#cine-alternativo">Alternativo</a>
-        <a href="/en-vivo/">En vivo</a>
-        <button type="button" data-share-page><img class="share-icon" src="/assets/icons/whatsapp.svg" alt="">Compartir</button>
-      </div>
-    </div>
+    <p class="footer-title">MoVeTe<span>.</span></p>
   </footer>
   <script src="/assets/js/movete.js" defer></script>
 </body>
