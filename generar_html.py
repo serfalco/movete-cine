@@ -374,7 +374,15 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
   </main>
 
   <footer class="site-footer">
-    <p class="footer-title">MoVeTe<span>.</span></p>
+    <p class="footer-line">
+      <span class="footer-brand">MoVeTe<span>.</span></span>
+      <span aria-hidden="true">·</span>
+      <span>La Plata</span>
+      <span aria-hidden="true">·</span>
+      <span>{jueves.year}</span>
+      <span aria-hidden="true">·</span>
+      <button class="footer-share" type="button" data-share-page title="Avisá que existimos por WhatsApp" aria-label="Avisá que existimos por WhatsApp">Avisá que existimos <img class="share-icon" src="/assets/icons/whatsapp.svg" alt=""></button>
+    </p>
   </footer>
   <script src="/assets/js/movete.js" defer></script>
 </body>
