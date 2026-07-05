@@ -96,7 +96,7 @@ def _parsear_pelicula(linea):
 
     # Extraer todo lo que esté entre paréntesis (idioma y/o formato)
     parentesis = RE_PAREN.findall(cabeza)
-    titulo = RE_PAREN.sub("", cabeza).strip(" .-")
+    titulo = re.sub(r"\s+", " ", RE_PAREN.sub("", cabeza)).strip(" .-+· ")
 
     idioma = ""
     formato = ""
@@ -202,7 +202,7 @@ def _parsear_peliculas_bloque(bloque):
 
         # idioma/formato de la cabeza
         parens = RE_PAREN.findall(cabeza)
-        titulo = RE_PAREN.sub("", cabeza).strip(" .-·\u00a0")
+        titulo = re.sub(r"\s+", " ", RE_PAREN.sub("", cabeza)).strip(" .-+·\u00a0")
         idioma = ""
         formato = ""
         for p in parens:

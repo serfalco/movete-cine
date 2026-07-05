@@ -383,6 +383,7 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
     <section class="hero compact">
       <p class="eyebrow">Cine · Edición {esc(fecha_iso)}</p>
       <h1>Cartelera de cine en La Plata</h1>
+      <p class="lead">La cartelera completa de cine en La Plata: salas comerciales, cine independiente y funciones especiales, actualizada cada semana.</p>
     </section>
 
     <section class="ad-box sponsor-card">
@@ -396,13 +397,13 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
     </section>
 
     <section id="cine-tradicional" class="section">
-      <h2>Tradicional</h2>
+      <h2>Cine tradicional</h2>
       {salas_nav}
       {trad}
     </section>
 
     <section id="cine-alternativo" class="section">
-      <h2>Alternativo</h2>
+      <h2>Cine independiente y alternativo</h2>
       {alt}
     </section>
 
