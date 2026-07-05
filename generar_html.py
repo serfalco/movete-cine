@@ -17,7 +17,7 @@ MESES = [
 
 DIAS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
 
-POSTER_PLACEHOLDER = "/assets/img/cine-placeholder.jpg"
+POSTER_PLACEHOLDER = "/assets/images/cine-placeholder.jpg"
 ESPACIOS_PATH = Path(__file__).with_name("espacios_cine.json")
 _ESPACIOS_CACHE: dict[str, dict] | None = None
 
@@ -304,12 +304,46 @@ def bloque_alternativo(funciones: list[dict]) -> str:
     return "\n".join(bloques)
 
 
+def render_schema_cine(cines_tradicional: list[dict], funciones_alternativo: list[dict]) -> str:
+    """JSON-LD (Schema.org) para la cartelera de cine: películas y funciones."""
+    items = []
+    pos = 1
+    for cine in cines_tradicional:
+        for peli in cine.get("peliculas", []):
+            info = peli.get("tmdb") or {}
+            movie = {"@type": "Movie", "name": peli.get("titulo", "")}
+            img = info.get("backdrop") or info.get("poster")
+            if img:
+                movie["image"] = img
+            if info.get("director"):
+                movie["director"] = {"@type": "Person", "name": info["director"]}
+            items.append({"@type": "ListItem", "position": pos, "item": movie})
+            pos += 1
+    for f in funciones_alternativo:
+        fecha = str(f.get("fecha", "")).strip()
+        hora = str(f.get("hora", "")).strip()
+        ev = {
+            "@type": "ScreeningEvent",
+            "name": f.get("titulo", ""),
+            "location": {"@type": "Place", "name": f.get("espacio", "")},
+        }
+        if fecha:
+            ev["startDate"] = fecha + ("T" + hora if hora else "")
+        items.append({"@type": "ListItem", "position": pos, "item": ev})
+        pos += 1
+    if not items:
+        return ""
+    data = {"@context": "https://schema.org", "@type": "ItemList", "itemListElement": items[:60]}
+    return '<script type="application/ld+json">' + json.dumps(data, ensure_ascii=False) + "</script>"
+
+
 def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], jueves: datetime) -> str:
     rango = rango_texto(jueves)
     fecha_iso = jueves.strftime("%Y-%m-%d")
     trad = bloque_tradicional(cines_tradicional)
     alt = bloque_alternativo(funciones_alternativo)
     salas_nav = nav_salas(cines_tradicional)
+    schema_ld = render_schema_cine(cines_tradicional, funciones_alternativo)
 
     return f"""<!doctype html>
 <html lang="es-AR">
@@ -318,6 +352,15 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Cartelera de cine en La Plata · Semana del {esc(rango)} · MoVeTe</title>
   <meta name="description" content="Cartelera de cine en La Plata para encontrar tu función: salas, cineclubes y funciones especiales. Edición semanal del {esc(rango)}.">
+  <link rel="canonical" href="https://movete.info/cine/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="MoVeTe">
+  <meta property="og:title" content="Cartelera de cine en La Plata · MoVeTe">
+  <meta property="og:description" content="Cine en La Plata: salas, cineclubes y funciones especiales. Semana del {esc(rango)}.">
+  <meta property="og:url" content="https://movete.info/cine/">
+  <meta property="og:image" content="https://movete.info/assets/images/cartelera-cine.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+  {schema_ld}
   <link rel="stylesheet" href="/assets/css/movete.css">
 </head>
 
