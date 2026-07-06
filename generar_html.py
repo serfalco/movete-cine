@@ -10,6 +10,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from urllib.parse import quote_plus
 
+import generar_ficha
+
 MESES = [
     "enero", "febrero", "marzo", "abril", "mayo", "junio",
     "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
@@ -186,6 +188,13 @@ def trailer_html(info: dict | None) -> str:
     return ""
 
 
+def ficha_link_html(info: dict | None) -> str:
+    if not info or not info.get("tmdb_id") or not info.get("titulo"):
+        return ""
+    slug = generar_ficha.slug_pelicula(info.get("titulo", ""), info.get("anio", ""))
+    return f'<p class="movie-ficha-link"><a href="/cine/pelis/{esc(slug)}/">Ver ficha completa →</a></p>'
+
+
 def imagen_cine(info: dict | None) -> tuple[str, str]:
     if info and info.get("backdrop"):
         return esc(info["backdrop"]), ""
@@ -221,6 +230,7 @@ def bloque_tradicional(cines: list[dict]) -> str:
                     {sinopsis_html(info)}
                     {trailer_html(info)}
                     <ul class="times">{horarios_html}</ul>
+                    {ficha_link_html(info)}
                   </div>
                 </article>
                 """
@@ -370,6 +380,7 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
     <nav class="site-nav" aria-label="Secciones principales">
       <a href="/">Inicio</a>
       <a href="/cine/" aria-current="page">Cine</a>
+      <a href="/cine/pelis/">Pelis</a>
       <a href="/en-vivo/">En vivo</a>
     </nav>
   </header>

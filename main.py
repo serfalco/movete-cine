@@ -20,12 +20,14 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 import tmdb
+import generar_ficha
 from generar_html import generar
 from scraper_agendalp_cine import scrapear_cine_alternativo
 from scraper_eldia import scrapear_cine_tradicional
 
 
 ALIAS_PATH = "alias.json"
+SITIO = "https://movete.info"
 
 
 def parse_args() -> argparse.Namespace:
@@ -127,6 +129,124 @@ def enriquecer_con_tmdb(tradicional: list[dict], cache_path: Path):
     return tradicional, no_encontrados
 
 
+def _escribir_si_cambia(destino: Path, contenido: str) -> bool:
+    """Escribe sólo si el contenido cambió (mantiene los commits chicos)."""
+    try:
+        if destino.exists() and destino.read_text(encoding="utf-8") == contenido:
+            return False
+    except OSError:
+        pass
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    destino.write_text(contenido, encoding="utf-8")
+    return True
+
+
+def _meta_de_ficha(rich: dict, slug: str, en_cartelera: bool) -> dict:
+    return {
+        "slug": slug,
+        "titulo": rich.get("titulo", ""),
+        "anio": rich.get("anio", ""),
+        "poster": rich.get("poster"),
+        "generos": rich.get("generos", []),
+        "en_cartelera": en_cartelera,
+    }
+
+
+def _escribir_sitemap_pelis(out: Path, metas: list[dict], jueves: datetime) -> None:
+    lastmod = jueves.strftime("%Y-%m-%d")
+    locs = [f"{SITIO}/cine/pelis/"] + [f"{SITIO}/cine/pelis/{m['slug']}/" for m in metas]
+    filas = "\n".join(
+        f"  <url><loc>{loc}</loc><lastmod>{lastmod}</lastmod></url>" for loc in locs
+    )
+    xml = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        f"{filas}\n"
+        "</urlset>\n"
+    )
+    _escribir_si_cambia(out / "sitemap-pelis.xml", xml)
+
+
+def generar_fichas(tradicional: list[dict], out: Path, jueves: datetime, cache_path: Path) -> None:
+    """Genera una ficha por película (más la home /cine/pelis/ y su sitemap).
+
+    Usa un caché por tmdb_id: la data rica de TMDb se pide una sola vez por peli.
+    Reescribe únicamente las fichas que cambiaron. Todo defensivo: si algo falla,
+    la cartelera semanal ya quedó publicada igual.
+    """
+
+    if not tmdb.disponible():
+        print("[fichas] Sin TMDB_API_KEY: no se generan fichas.", file=sys.stderr)
+        return
+
+    cache = _cargar_json(cache_path, {})
+    if not isinstance(cache, dict):
+        cache = {}
+    semana = jueves.strftime("%Y-%m-%d")
+
+    # 1) Películas de esta semana: data rica (de caché o recién pedida).
+    vistos: dict[str, dict] = {}
+    for cine in tradicional:
+        for peli in cine.get("peliculas", []):
+            info = peli.get("tmdb") or {}
+            tid = info.get("tmdb_id")
+            if not tid:
+                continue
+            clave = str(tid)
+            if clave in vistos:
+                continue
+            rich = (cache.get(clave) or {}).get("tmdb")
+            if not rich:
+                rich = tmdb.ficha_pelicula(int(tid))
+            if not rich:
+                continue
+            vistos[clave] = rich
+            cache[clave] = {"tmdb": rich, "ultima_semana": semana}
+
+    # 2) Renderizar cada ficha conocida (esta semana + archivo).
+    pelis_dir = out / "pelis"
+    metas: list[dict] = []
+    escritas = 0
+    for clave, item in cache.items():
+        rich = (item or {}).get("tmdb")
+        if not rich:
+            continue
+        en_cartelera = clave in vistos
+        try:
+            tid_int = int(clave)
+        except (TypeError, ValueError):
+            tid_int = None
+        presencia = (
+            generar_ficha.construir_presencia(tradicional, tid_int, rich.get("titulo", ""))
+            if en_cartelera
+            else []
+        )
+        slug = generar_ficha.slug_pelicula(rich.get("titulo", ""), rich.get("anio", ""))
+        html = generar_ficha.render_ficha(rich, presencia, jueves, jueves.year)
+        if _escribir_si_cambia(pelis_dir / slug / "index.html", html):
+            escritas += 1
+        metas.append(_meta_de_ficha(rich, slug, en_cartelera))
+
+    # 3) Home de la sección + sitemap.
+    metas.sort(key=lambda m: (not m["en_cartelera"], -_anio_int(m["anio"]), m["titulo"].lower()))
+    indice = generar_ficha.render_indice(metas, jueves, jueves.year)
+    _escribir_si_cambia(pelis_dir / "index.html", indice)
+    _escribir_sitemap_pelis(out, metas, jueves)
+
+    _guardar_json(cache_path, cache)
+    print(
+        f"[fichas] {len(vistos)} en cartelera, {len(metas)} fichas totales, {escritas} reescritas.",
+        file=sys.stderr,
+    )
+
+
+def _anio_int(anio: str) -> int:
+    try:
+        return int(anio)
+    except (TypeError, ValueError):
+        return 0
+
+
 def jueves_de_esta_semana(hoy: datetime | None = None) -> datetime:
     if hoy is None:
         hoy = datetime.now()
@@ -184,6 +304,12 @@ def main() -> None:
     (out / "index.html").write_text(html, encoding="utf-8")
 
     print(f"[main] Generado: {slug_dir / 'index.html'}", file=sys.stderr)
+
+    # Fichas por película (defensivo: nunca debe tumbar la cartelera).
+    try:
+        generar_fichas(tradicional, out, jueves, out / "fichas.json")
+    except Exception as e:
+        print(f"[main] Generación de fichas falló (la cartelera igual quedó): {e}", file=sys.stderr)
 
     if no_encontrados:
         print("[main] --- Sin afiche/datos (revisá alias.json) ---", file=sys.stderr)
