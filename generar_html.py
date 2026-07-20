@@ -289,7 +289,7 @@ def bloque_alternativo(funciones: list[dict]) -> str:
                 <article class="event-card independent-cinema-card">
                   <div class="independent-card-topline">
                     <p class="event-date">{esc(funcion.get('hora'))} hs</p>
-                    <span class="pill">Alternativo</span>
+                    <span class="pill">Independiente</span>
                   </div>
                   <h3>{esc(funcion.get('titulo'))}</h3>
                   <div class="independent-venue">
@@ -387,7 +387,7 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
 
   <nav class="section-jump-nav" aria-label="Navegación de cine">
     <a href="#cine-tradicional">Tradicional</a>
-    <a href="#cine-alternativo">Alternativo</a>
+    <a href="#cine-alternativo">Independiente</a>
   </nav>
 
   <main>
