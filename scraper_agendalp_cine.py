@@ -19,7 +19,10 @@ from bs4 import BeautifulSoup
 
 # Mismo método que el scraper que ya conecta desde GitHub:
 HEADERS = {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) Chrome/120.0"}
-BASE = "https://agendalaplata.ar/genda/"
+# La agenda vivía en /genda/ y ese path ahora hace 301 a la raíz; el redirect
+# rompe el ?fecha= y devuelve 200 con una página vacía. Misma corrección que
+# en el scraper de genda del repo movete-scraper.
+BASE = "https://agendalaplata.ar/"
 
 PATRON_EVENTO = re.compile(r"(\d{1,2}):(\d{2})\s*hs\s*\|[ \t]*([^\n]{0,100})")
 PATRON_HORA = re.compile(r"^\d{1,2}:\d{2}\s*hs")

@@ -493,6 +493,9 @@ def render_ficha(ficha: dict, presencia: list[dict], jueves: datetime, anio_actu
   <meta property="og:image" content="{esc(og_image)}">
   <meta name="twitter:card" content="summary_large_image">
   {render_schema_ficha(ficha, url)}
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="32x32">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="stylesheet" href="/assets/css/movete.css">
   <link rel="stylesheet" href="/assets/css/ficha.css">
 </head>
@@ -618,6 +621,9 @@ def render_indice(fichas_meta: list[dict], jueves: datetime, anio_actual: int) -
   <meta property="og:image" content="{SITIO}/assets/images/cartelera-cine.jpg">
   <meta name="twitter:card" content="summary_large_image">
   <script type="application/ld+json">{json.dumps(schema, ensure_ascii=False)}</script>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="32x32">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="stylesheet" href="/assets/css/movete.css">
   <link rel="stylesheet" href="/assets/css/ficha.css">
 </head>
