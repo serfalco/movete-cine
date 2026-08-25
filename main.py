@@ -295,13 +295,18 @@ def main() -> None:
     cache_path = out / "peliculas.json"
     tradicional, no_encontrados = enriquecer_con_tmdb(tradicional, cache_path)
 
-    html = generar(tradicional, alternativo, jueves)
+    # Dos renders del mismo contenido con canonical distinto: la portada es la
+    # cartelera vigente, la edicion fechada es una URL permanente que se indexa
+    # sola. Antes las dos apuntaban a /cine/ y el archivo quedaba invisible.
+    html_portada = generar(tradicional, alternativo, jueves)
+    html_edicion = generar(tradicional, alternativo, jueves,
+                           page_url=f"{SITIO}/cine/{slug}/")
 
     slug_dir = out / slug
     slug_dir.mkdir(parents=True, exist_ok=True)
 
-    (slug_dir / "index.html").write_text(html, encoding="utf-8")
-    (out / "index.html").write_text(html, encoding="utf-8")
+    (slug_dir / "index.html").write_text(html_edicion, encoding="utf-8")
+    (out / "index.html").write_text(html_portada, encoding="utf-8")
 
     print(f"[main] Generado: {slug_dir / 'index.html'}", file=sys.stderr)
 

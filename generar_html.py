@@ -347,7 +347,14 @@ def render_schema_cine(cines_tradicional: list[dict], funciones_alternativo: lis
     return '<script type="application/ld+json">' + json.dumps(data, ensure_ascii=False) + "</script>"
 
 
-def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], jueves: datetime) -> str:
+def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict],
+            jueves: datetime, page_url: str = "https://movete.info/cine/") -> str:
+    """page_url fija el canonical y el og:url.
+
+    La edicion archivada (/cine/AAAA-MM-DD/) salia con el canonical de la
+    portada, o sea pidiendole a Google que no la indexara. Ahora cada una
+    apunta a si misma y el archivo semanal puede rankear por su cuenta.
+    """
     rango = rango_texto(jueves)
     fecha_iso = jueves.strftime("%Y-%m-%d")
     trad = bloque_tradicional(cines_tradicional)
@@ -362,15 +369,18 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Cartelera de cine en La Plata · Semana del {esc(rango)} · MoVeTe</title>
   <meta name="description" content="Cartelera de cine en La Plata para encontrar tu función: salas, cineclubes y funciones especiales. Edición semanal del {esc(rango)}.">
-  <link rel="canonical" href="https://movete.info/cine/">
+  <link rel="canonical" href="{esc(page_url)}">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="MoVeTe">
   <meta property="og:title" content="Cartelera de cine en La Plata · MoVeTe">
   <meta property="og:description" content="Cine en La Plata: salas, cineclubes y funciones especiales. Semana del {esc(rango)}.">
-  <meta property="og:url" content="https://movete.info/cine/">
+  <meta property="og:url" content="{esc(page_url)}">
   <meta property="og:image" content="https://movete.info/assets/images/cartelera-cine.jpg">
   <meta name="twitter:card" content="summary_large_image">
   {schema_ld}
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="32x32">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="stylesheet" href="/assets/css/movete.css">
 </head>
 
@@ -399,7 +409,7 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict], ju
 
     <section class="ad-box sponsor-card">
       <div class="sponsor-kicker">
-        <img class="sponsor-logo" src="/assets/images/tres-empanadas-comedia.png" alt="">
+        <img class="sponsor-logo" src="/assets/images/tres-empanadas-comedia.png" alt="Tres Empanadas Comedia" width="36" height="36" decoding="async">
         <p class="ad-label">Espacio promocional</p>
       </div>
       <h2>Tres Empanadas Comedia</h2>
