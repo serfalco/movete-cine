@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import html
 import json
+import re
 import unicodedata
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -91,6 +92,30 @@ def catalogo_espacios() -> dict[str, dict]:
 
     _ESPACIOS_CACHE = catalogo
     return catalogo
+
+
+def postal_address(direccion: str | None) -> dict:
+    """PostalAddress para el JSON-LD, siempre presente.
+
+    Search Console marca "Falta el campo address (en location)" cuando el
+    Place sale solo con name, que era el caso de TODAS las funciones de cine
+    alternativo. Si no conocemos la calle igual decimos La Plata, Buenos
+    Aires, Argentina; el streetAddress se agrega cuando esta en
+    espacios_cine.json.
+    """
+    addr = {
+        "@type": "PostalAddress",
+        "addressLocality": "La Plata",
+        "addressRegion": "Buenos Aires",
+        "addressCountry": "AR",
+    }
+    calle = str(direccion or "").strip()
+    if calle:
+        calle = re.sub(r",?\s*Buenos Aires\s*$", "", calle).strip(" ,")
+        calle = re.sub(r",?\s*La Plata\s*$", "", calle).strip(" ,")
+    if calle:
+        addr["streetAddress"] = calle
+    return addr
 
 
 def datos_espacio(nombre: str) -> dict:
@@ -332,10 +357,15 @@ def render_schema_cine(cines_tradicional: list[dict], funciones_alternativo: lis
     for f in funciones_alternativo:
         fecha = str(f.get("fecha", "")).strip()
         hora = str(f.get("hora", "")).strip()
+        espacio = datos_espacio(f.get("espacio", ""))
         ev = {
             "@type": "ScreeningEvent",
             "name": f.get("titulo", ""),
-            "location": {"@type": "Place", "name": f.get("espacio", "")},
+            "location": {
+                "@type": "Place",
+                "name": espacio["nombre"],
+                "address": postal_address(espacio["direccion"]),
+            },
         }
         if fecha:
             ev["startDate"] = fecha + ("T" + hora if hora else "")
