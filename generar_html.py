@@ -140,6 +140,19 @@ def nombre_sala(cine: str) -> str:
     return nombre
 
 
+def nombre_completo_sala(cine: str) -> str:
+    """'CINEMA SAN MARTÍN' -> 'Cinema San Martín'. Así lo busca la gente."""
+    nombre = str(cine or "").strip()
+    if nombre.isupper():
+        nombre = nombre.title()
+    return nombre
+
+
+def slug_sala(cine: str) -> str:
+    """URL fija de la sala: /cine/sala/cinema-san-martin/."""
+    return slugify(nombre_completo_sala(cine))
+
+
 def nav_salas(cines: list[dict]) -> str:
     links = []
     for cine in cines:
@@ -265,7 +278,7 @@ def bloque_tradicional(cines: list[dict]) -> str:
             f"""
             <section class="day-block" id="sala-{slugify(nombre_sala(cine.get('cine', '')))}">
               <h2>{esc(nombre_sala(cine.get('cine')))}</h2>
-              <p class="event-meta">{esc(cine.get('direccion'))}</p>
+              <p class="event-meta">{esc(cine.get('direccion'))} · <a href="/cine/sala/{slug_sala(cine.get('cine', ''))}/">Cartelera de {esc(nombre_completo_sala(cine.get('cine', '')))} →</a></p>
               <div class="movie-list">
                 {''.join(peliculas)}
               </div>
@@ -378,7 +391,8 @@ def render_schema_cine(cines_tradicional: list[dict], funciones_alternativo: lis
 
 
 def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict],
-            jueves: datetime, page_url: str = "https://movete.info/cine/") -> str:
+            jueves: datetime, page_url: str = "https://movete.info/cine/",
+            sala: str = "", otras_salas: list[str] | None = None) -> str:
     """page_url fija el canonical y el og:url.
 
     La edicion archivada (/cine/AAAA-MM-DD/) salia con el canonical de la
@@ -392,18 +406,57 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict],
     salas_nav = nav_salas(cines_tradicional)
     schema_ld = render_schema_cine(cines_tradicional, funciones_alternativo)
 
+    # La gente busca la sala por nombre ("cinema city la plata", "horarios
+    # cinema san martin"): cada sala tiene su página fija con la cartelera
+    # vigente. Misma plantilla, otros textos y sin la parte independiente.
+    page_title = f"Cartelera de cine en La Plata · Horarios de Cinema y Select · MoVeTe"
+    page_desc = f"Cartelera de cine en La Plata para encontrar tu función: salas, cineclubes y funciones especiales. Edición semanal del {rango}."
+    h1 = "Cartelera de cine en La Plata"
+    lead = "La cartelera completa de cine en La Plata: salas comerciales, cine independiente y funciones especiales, actualizada cada semana."
+    eyebrow = f"Cine · Edición {fecha_iso}"
+    bloque_alt = f"""<section id="cine-alternativo" class="section">
+      <h2>Cine independiente y alternativo</h2>
+      {alt}
+    </section>"""
+    jump = """<nav class="section-jump-nav" aria-label="Navegación de cine">
+    <a href="#cine-tradicional">Tradicional</a>
+    <a href="#cine-alternativo">Independiente</a>
+  </nav>"""
+    titulo_trad = "Cine tradicional"
+    if sala:
+        n = sum(len(c.get("peliculas", [])) for c in cines_tradicional)
+        page_title = f"{sala} La Plata: cartelera y horarios · MoVeTe"
+        if len(page_title) > 62:
+            page_title = f"{sala}: cartelera y horarios · MoVeTe"
+        direccion = (cines_tradicional[0].get("direccion") if cines_tradicional else "") or ""
+        pelis = "1 película" if n == 1 else f"{n} películas"
+        page_desc = (f"Cartelera de {sala} en La Plata: {pelis} con horarios para la semana del {rango}."
+                     + (f" Dirección: {direccion.rstrip('.')}." if direccion else ""))
+        h1 = f"{sala}: cartelera y horarios"
+        lead = f"Las películas y horarios de {sala} en La Plata para esta semana. Se actualiza cada jueves."
+        eyebrow = f"Cine en La Plata · Semana del {rango}"
+        otras = " · ".join(f'<a href="/cine/sala/{slugify(o)}/">{esc(o)}</a>' for o in (otras_salas or []) if o != sala)
+        bloque_alt = f"""<section class="card">
+      <p class="tag">Otras salas</p>
+      <p>{otras}</p>
+      <a href="/cine/">Ver toda la cartelera de cine en La Plata →</a>
+    </section>""" if otras else ""
+        jump = ""
+        salas_nav = ""
+        titulo_trad = f"Películas en {sala}"
+
     return f"""<!doctype html>
 <html lang="es-AR">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Cartelera de cine en La Plata · Semana del {esc(rango)} · MoVeTe</title>
-  <meta name="description" content="Cartelera de cine en La Plata para encontrar tu función: salas, cineclubes y funciones especiales. Edición semanal del {esc(rango)}.">
+  <title>{esc(page_title)}</title>
+  <meta name="description" content="{esc(page_desc)}">
   <link rel="canonical" href="{esc(page_url)}">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="MoVeTe">
-  <meta property="og:title" content="Cartelera de cine en La Plata · MoVeTe">
-  <meta property="og:description" content="Cine en La Plata: salas, cineclubes y funciones especiales. Semana del {esc(rango)}.">
+  <meta property="og:title" content="{esc(page_title)}">
+  <meta property="og:description" content="{esc(page_desc)}">
   <meta property="og:url" content="{esc(page_url)}">
   <meta property="og:image" content="https://movete.info/assets/images/cartelera-cine.jpg">
   <meta name="twitter:card" content="summary_large_image">
@@ -425,16 +478,13 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict],
     </nav>
   </header>
 
-  <nav class="section-jump-nav" aria-label="Navegación de cine">
-    <a href="#cine-tradicional">Tradicional</a>
-    <a href="#cine-alternativo">Independiente</a>
-  </nav>
+  {jump}
 
   <main>
     <section class="hero compact">
-      <p class="eyebrow">Cine · Edición {esc(fecha_iso)}</p>
-      <h1>Cartelera de cine en La Plata</h1>
-      <p class="lead">La cartelera completa de cine en La Plata: salas comerciales, cine independiente y funciones especiales, actualizada cada semana.</p>
+      <p class="eyebrow">{esc(eyebrow)}</p>
+      <h1>{esc(h1)}</h1>
+      <p class="lead">{esc(lead)}</p>
     </section>
 
     <section class="ad-box sponsor-card">
@@ -448,15 +498,12 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict],
     </section>
 
     <section id="cine-tradicional" class="section">
-      <h2>Cine tradicional</h2>
+      <h2>{esc(titulo_trad)}</h2>
       {salas_nav}
       {trad}
     </section>
 
-    <section id="cine-alternativo" class="section">
-      <h2>Cine independiente y alternativo</h2>
-      {alt}
-    </section>
+    {bloque_alt}
 
     <section class="card">
       <p class="tag">También en MoVeTe</p>
