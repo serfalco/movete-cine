@@ -21,7 +21,7 @@ from pathlib import Path
 
 import tmdb
 import generar_ficha
-from generar_html import generar
+from generar_html import generar, nombre_completo_sala, slug_sala
 from scraper_agendalp_cine import scrapear_cine_alternativo
 from scraper_eldia import scrapear_cine_tradicional
 
@@ -254,6 +254,23 @@ def jueves_de_esta_semana(hoy: datetime | None = None) -> datetime:
     return (hoy - timedelta(days=delta)).replace(hour=0, minute=0, second=0, microsecond=0)
 
 
+def generar_paginas_sala(tradicional: list[dict], out: Path, jueves: datetime) -> list[Path]:
+    nombres = [nombre_completo_sala(c.get("cine", "")) for c in tradicional if c.get("cine")]
+    salidas = []
+    for cine in tradicional:
+        nombre = nombre_completo_sala(cine.get("cine", ""))
+        if not nombre or not cine.get("peliculas"):
+            continue
+        slug = slug_sala(cine.get("cine", ""))
+        html = generar([cine], [], jueves, page_url=f"{SITIO}/cine/sala/{slug}/",
+                       sala=nombre, otras_salas=nombres)
+        destino = out / "sala" / slug / "index.html"
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        destino.write_text(html, encoding="utf-8")
+        salidas.append(destino)
+    return salidas
+
+
 def main() -> None:
     args = parse_args()
     out = Path(args.output)
@@ -309,6 +326,13 @@ def main() -> None:
     (out / "index.html").write_text(html_portada, encoding="utf-8")
 
     print(f"[main] Generado: {slug_dir / 'index.html'}", file=sys.stderr)
+
+    # Una página fija por sala comercial (/cine/sala/<slug>/). Defensivo:
+    # nunca debe tumbar la cartelera.
+    try:
+        generar_paginas_sala(tradicional, out, jueves)
+    except Exception as e:
+        print(f"[main] Páginas por sala fallaron (la cartelera igual quedó): {e}", file=sys.stderr)
 
     # Fichas por película (defensivo: nunca debe tumbar la cartelera).
     try:
