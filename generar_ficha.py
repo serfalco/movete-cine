@@ -21,7 +21,7 @@ from datetime import datetime, timedelta
 from urllib.parse import quote_plus
 
 SITIO = "https://movete.info"
-PROMO_URL = "https://tresempanadas.com.ar/reservas"
+PROMO_URL = "https://tresempanadas.com.ar/reservas/?utm_source=movete&utm_medium=cine-ficha&utm_campaign=sponsor"
 
 MESES = [
     "enero", "febrero", "marzo", "abril", "mayo", "junio",

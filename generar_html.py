@@ -494,7 +494,7 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict],
       </div>
       <h2>Tres Empanadas Comedia</h2>
       <p>Stand up en La Plata. Shows a la gorra, todos los jueves y viernes.</p>
-      <a class="button small" href="https://tresempanadas.com.ar/reservas">Más info</a>
+      <a class="button small" href="https://tresempanadas.com.ar/reservas/?utm_source=movete&amp;utm_medium=cine&amp;utm_campaign=sponsor">Reservar lugar</a>
     </section>
 
     <section id="cine-tradicional" class="section">
