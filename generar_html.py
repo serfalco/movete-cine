@@ -241,6 +241,96 @@ def imagen_cine(info: dict | None) -> tuple[str, str]:
     return POSTER_PLACEHOLDER, " portrait-fallback"
 
 
+def _clave_titulo(titulo: str) -> str:
+    return slugify(str(titulo or "").strip())
+
+
+def agrupar_versiones(peliculas: list[dict]) -> list[dict]:
+    """Junta en una sola película las versiones (castellano/subtitulada, 2D/3D).
+
+    El Día publica cada versión como una línea aparte y la página mostraba
+    la misma película dos o tres veces seguidas: contenido duplicado para
+    Google y una lista más larga para el que mira desde el celular. Se
+    respeta el orden de aparición.
+    """
+    grupos: dict[str, dict] = {}
+    orden: list[str] = []
+    for peli in peliculas:
+        clave = _clave_titulo(peli.get("titulo", ""))
+        if not clave:
+            continue
+        if clave not in grupos:
+            grupos[clave] = {"titulo": peli.get("titulo", ""), "tmdb": peli.get("tmdb"), "versiones": []}
+            orden.append(clave)
+        g = grupos[clave]
+        if not g.get("tmdb") and peli.get("tmdb"):
+            g["tmdb"] = peli.get("tmdb")
+        g["versiones"].append({
+            "idioma": peli.get("idioma", ""),
+            "formato": peli.get("formato", ""),
+            "horarios": list(peli.get("horarios", [])),
+        })
+    return [grupos[c] for c in orden]
+
+
+def titulo_corto(titulo: str) -> str:
+    """'Spider-Man: Un nuevo día' -> 'Spider-Man'. Para que entren en el title."""
+    t = str(titulo or "").strip()
+    corto = re.split(r"\s*[:–—]\s*", t, maxsplit=1)[0].strip()
+    return corto if len(corto) >= 3 else t
+
+
+def titulo_y_descripcion_sala(sala: str, direccion: str, pelis: list[dict], rango: str) -> tuple[str, str]:
+    """Title y description de /cine/sala/<slug>/.
+
+    Antes: "Cinema City La Plata: cartelera y horarios" para todas las salas
+    y todas las semanas — posición 12 a 25 y casi ningún clic. La gente
+    busca "<película> cinema la plata" y "horarios de <película> cerca de la
+    plata": nombrar las películas de la semana en el title y la descripción
+    es lo que conecta la página con esas búsquedas. Google corta en ~60
+    caracteres, así que se prueba de más completo a menos.
+    """
+    # Primero las de más funciones: suelen ser los estrenos fuertes, que
+    # son los que la gente busca. El orden de El Día es arbitrario.
+    por_funciones = sorted(
+        (p for p in pelis if p.get("titulo")),
+        key=lambda p: -sum(len(v.get("horarios", [])) for v in p.get("versiones", [])))
+    nombres = [p["titulo"] for p in por_funciones]
+    cortos = []
+    for n in nombres:
+        c = titulo_corto(n)
+        if c not in cortos:
+            cortos.append(c)
+    lugar = sala if "la plata" in sala.lower() else f"{sala} La Plata"
+    base = f"{lugar}: cartelera"
+    marca = " · MoVeTe"
+    candidatos = []
+    if len(cortos) >= 2:
+        y_mas = " y más" if len(cortos) > 2 else ""
+        candidatos += [f"{base} · {cortos[0]}, {cortos[1]}{y_mas}",
+                       f"{base} · {cortos[0]}, {cortos[1]}"]
+    if cortos:
+        candidatos += [f"{base} · {cortos[0]} y más" if len(cortos) > 1 else f"{base} · {cortos[0]}",
+                       f"{base} y horarios · {cortos[0]}"]
+    candidatos += [f"{base} y horarios{marca}", f"{base} y horarios", base]
+    title = next((t for t in candidatos if len(t) <= 62), base[:61].rstrip(" ,·:(") + "…")
+
+    n = len(nombres)
+    if n:
+        muestra = ", ".join(nombres[:3]) + (" y más" if n > 3 else "")
+        cuantas = "1 película" if n == 1 else f"{n} películas"
+        desc = f"Horarios de {sala} en La Plata, semana del {rango}: {cuantas} — {muestra}."
+        idiomas = {("subt" if str(v.get("idioma", "")).lower().startswith("subt") else "cast")
+                   for p in pelis for v in p.get("versiones", []) if v.get("idioma")}
+        if idiomas == {"cast", "subt"}:
+            desc += " Castellano y subtituladas."
+    else:
+        desc = f"Cartelera y horarios de {sala} en La Plata para la semana del {rango}."
+    if direccion:
+        desc += f" Dirección: {direccion.rstrip('.')}."
+    return title, desc
+
+
 def bloque_tradicional(cines: list[dict]) -> str:
     if not cines:
         return '<p class="empty">Esta semana no hay funciones tradicionales.</p>'
@@ -250,10 +340,14 @@ def bloque_tradicional(cines: list[dict]) -> str:
     for cine in cines:
         peliculas = []
 
-        for peli in cine.get("peliculas", []):
+        for peli in agrupar_versiones(cine.get("peliculas", [])):
             info = peli.get("tmdb")
-            horarios = peli.get("horarios", [])
-            horarios_html = "".join(f"<li>{esc(h)}</li>" for h in horarios)
+            versiones_html = "".join(
+                f"""<div class="movie-version" style="display:flex;flex-wrap:wrap;align-items:center;gap:.4rem .6rem;margin:.5rem 0">
+                    <div class="pill-row" style="margin:0">{meta_badges(v.get('idioma', ''), v.get('formato', ''))}</div>
+                    <ul class="times" style="margin:0">{"".join(f"<li>{esc(h)}</li>" for h in v.get("horarios", []))}</ul></div>"""
+                for v in peli["versiones"]
+            )
             imagen_url, imagen_clase = imagen_cine(info)
 
             peliculas.append(
@@ -263,11 +357,10 @@ def bloque_tradicional(cines: list[dict]) -> str:
                   <div class="movie-card-body">
                     <h3>{esc(peli.get('titulo'))}</h3>
                     {ficha_extra(info)}
-                    <div class="pill-row">{meta_badges(peli.get('idioma', ''), peli.get('formato', ''))}</div>
                     {creditos_html(info)}
                     {sinopsis_html(info)}
                     {trailer_html(info)}
-                    <ul class="times">{horarios_html}</ul>
+                    {versiones_html}
                     {ficha_link_html(info)}
                   </div>
                 </article>
@@ -356,8 +449,13 @@ def render_schema_cine(cines_tradicional: list[dict], funciones_alternativo: lis
     """JSON-LD (Schema.org) para la cartelera de cine: películas y funciones."""
     items = []
     pos = 1
+    vistas: set[str] = set()
     for cine in cines_tradicional:
-        for peli in cine.get("peliculas", []):
+        for peli in agrupar_versiones(cine.get("peliculas", [])):
+            clave = _clave_titulo(peli.get("titulo", ""))
+            if clave in vistas:
+                continue
+            vistas.add(clave)
             info = peli.get("tmdb") or {}
             movie = {"@type": "Movie", "name": peli.get("titulo", "")}
             img = info.get("backdrop") or info.get("poster")
@@ -424,16 +522,26 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict],
   </nav>"""
     titulo_trad = "Cine tradicional"
     if sala:
-        n = sum(len(c.get("peliculas", [])) for c in cines_tradicional)
-        page_title = f"{sala} La Plata: cartelera y horarios · MoVeTe"
-        if len(page_title) > 62:
-            page_title = f"{sala}: cartelera y horarios · MoVeTe"
         direccion = (cines_tradicional[0].get("direccion") if cines_tradicional else "") or ""
-        pelis = "1 película" if n == 1 else f"{n} películas"
-        page_desc = (f"Cartelera de {sala} en La Plata: {pelis} con horarios para la semana del {rango}."
-                     + (f" Dirección: {direccion.rstrip('.')}." if direccion else ""))
+        pelis_sala = [p for c in cines_tradicional for p in agrupar_versiones(c.get("peliculas", []))]
+        # El Día trae "50 Nº 723 - Te. 423-5456": calle y teléfono por separado.
+        partes = re.split(r"\s*-\s*Tel?\.?\s*", direccion, maxsplit=1)
+        calle = partes[0].strip(" .-")
+        telefono = partes[1].strip(" .") if len(partes) > 1 else ""
+        page_title, page_desc = titulo_y_descripcion_sala(
+            sala, calle + (f" (tel. {telefono})" if telefono else ""), pelis_sala, rango)
+        teatro = {"@context": "https://schema.org", "@type": "MovieTheater", "name": sala,
+                  "url": page_url, "address": postal_address(calle)}
+        if telefono:
+            teatro["telephone"] = telefono
+        schema_ld += '<script type="application/ld+json">' + json.dumps(teatro, ensure_ascii=False) + "</script>"
         h1 = f"{sala}: cartelera y horarios"
-        lead = f"Las películas y horarios de {sala} en La Plata para esta semana. Se actualiza cada jueves."
+        nombres = [p["titulo"] for p in pelis_sala]
+        if nombres:
+            lista = ", ".join(nombres[:-1]) + (f" y {nombres[-1]}" if len(nombres) > 1 else nombres[0])
+            lead = f"Esta semana en {sala}: {lista}. Horarios del {rango}; se actualiza cada jueves."
+        else:
+            lead = f"Las películas y horarios de {sala} en La Plata para esta semana. Se actualiza cada jueves."
         eyebrow = f"Cine en La Plata · Semana del {rango}"
         otras = " · ".join(f'<a href="/cine/sala/{slugify(o)}/">{esc(o)}</a>' for o in (otras_salas or []) if o != sala)
         bloque_alt = f"""<section class="card">
