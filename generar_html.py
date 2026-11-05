@@ -304,14 +304,18 @@ def titulo_y_descripcion_sala(sala: str, direccion: str, pelis: list[dict], rang
     lugar = sala if "la plata" in sala.lower() else f"{sala} La Plata"
     base = f"{lugar}: cartelera"
     marca = " · MoVeTe"
+    # De más a menos completo. Si la película con más funciones tiene un
+    # nombre largo ("Sensatez y sentimientos") se prueba con las siguientes
+    # antes de caer en el título genérico, que no nombra ninguna.
     candidatos = []
-    if len(cortos) >= 2:
-        y_mas = " y más" if len(cortos) > 2 else ""
-        candidatos += [f"{base} · {cortos[0]}, {cortos[1]}{y_mas}",
-                       f"{base} · {cortos[0]}, {cortos[1]}"]
-    if cortos:
-        candidatos += [f"{base} · {cortos[0]} y más" if len(cortos) > 1 else f"{base} · {cortos[0]}",
-                       f"{base} y horarios · {cortos[0]}"]
+    top = cortos[:3]
+    for i in range(len(top)):
+        for j in range(i + 1, len(top)):
+            y_mas = " y más" if len(cortos) > 2 else ""
+            candidatos += [f"{base} · {top[i]}, {top[j]}{y_mas}", f"{base} · {top[i]}, {top[j]}"]
+    for c in cortos:
+        candidatos += [f"{base} · {c} y más" if len(cortos) > 1 else f"{base} · {c}",
+                       f"{base} · {c}"]
     candidatos += [f"{base} y horarios{marca}", f"{base} y horarios", base]
     title = next((t for t in candidatos if len(t) <= 62), base[:61].rstrip(" ,·:(") + "…")
 
