@@ -454,13 +454,33 @@ def render_schema_ficha(ficha: dict, url: str) -> str:
     return '<script type="application/ld+json">' + json.dumps(movie, ensure_ascii=False) + "</script>"
 
 
+def titulo_y_descripcion_ficha(t: str) -> tuple[str, str]:
+    """Description (<=155) y title (<=62) de la ficha. Google corta lo que
+    sobra; con títulos largos se perdía justo "horarios" y "La Plata"
+    (Ahrefs, nov/2026). Con títulos cortos queda igual que antes."""
+    descs = (f"{t} en La Plata: dónde y a qué hora verla esta semana, más ficha completa — dirección, elenco, sinopsis, tráiler y temas.",
+             f"{t} en La Plata: dónde y a qué hora verla esta semana. Elenco, sinopsis y tráiler.",
+             f"{t} en La Plata: dónde y a qué hora verla esta semana.")
+    desc = next((d for d in descs if len(d) <= 155), descs[-1])
+    if len(desc) > 155:
+        desc = desc[:154].rsplit(" ", 1)[0].rstrip(" ,:—-") + "…"
+    titulos = (f"{t} en La Plata: horarios, salas y ficha completa · MoVeTe",
+               f"{t} en La Plata: horarios, salas y ficha · MoVeTe",
+               f"{t} en La Plata: horarios y salas · MoVeTe",
+               f"{t} en La Plata: horarios · MoVeTe",
+               f"{t} en La Plata: horarios",
+               f"{t} en La Plata")
+    title = next((x for x in titulos if len(x) <= 62), titulos[-1])
+    return desc, title
+
+
 def render_ficha(ficha: dict, presencia: list[dict], jueves: datetime, anio_actual: int) -> str:
     slug = slug_pelicula(ficha.get("titulo", ""), ficha.get("anio", ""))
     url = f"{SITIO}/cine/pelis/{slug}/"
     titulo = esc(ficha.get("titulo"))
     og_image = ficha.get("hero") or ficha.get("backdrop") or ficha.get("poster") or f"{SITIO}/assets/images/cartelera-cine.jpg"
 
-    descr_base = f"{ficha.get('titulo')} en La Plata: dónde y a qué hora verla esta semana, más ficha completa — dirección, elenco, sinopsis, tráiler y temas."
+    descr_base, page_title = titulo_y_descripcion_ficha(ficha.get("titulo") or "")
     tagline_html = f'<p class="pf-tagline">{esc(ficha["tagline"])}</p>' if ficha.get("tagline") else ""
 
     cuerpo = "".join(
@@ -482,7 +502,7 @@ def render_ficha(ficha: dict, presencia: list[dict], jueves: datetime, anio_actu
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{titulo} en La Plata: horarios, salas y ficha completa · MoVeTe</title>
+  <title>{esc(page_title)}</title>
   <meta name="description" content="{esc(descr_base)}">
   <link rel="canonical" href="{esc(url)}">
   <meta property="og:type" content="video.movie">
