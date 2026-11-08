@@ -474,6 +474,16 @@ def titulo_y_descripcion_ficha(t: str) -> tuple[str, str]:
     return desc, title
 
 
+def schema_migas_ficha(titulo: str, url: str) -> str:
+    """BreadcrumbList: "MoVeTe › Cine › Películas › X" en el resultado de Google."""
+    pasos = [("MoVeTe", f"{SITIO}/"), ("Cine", f"{SITIO}/cine/"),
+             ("Películas", f"{SITIO}/cine/pelis/"), (titulo, url)]
+    data = {"@context": "https://schema.org", "@type": "BreadcrumbList",
+            "itemListElement": [{"@type": "ListItem", "position": i, "name": n, "item": u}
+                                for i, (n, u) in enumerate(pasos, 1)]}
+    return '<script type="application/ld+json">' + json.dumps(data, ensure_ascii=False) + "</script>"
+
+
 def render_ficha(ficha: dict, presencia: list[dict], jueves: datetime, anio_actual: int) -> str:
     slug = slug_pelicula(ficha.get("titulo", ""), ficha.get("anio", ""))
     url = f"{SITIO}/cine/pelis/{slug}/"
@@ -513,6 +523,7 @@ def render_ficha(ficha: dict, presencia: list[dict], jueves: datetime, anio_actu
   <meta property="og:image" content="{esc(og_image)}">
   <meta name="twitter:card" content="summary_large_image">
   {render_schema_ficha(ficha, url)}
+  {schema_migas_ficha(ficha.get("titulo") or "", url)}
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="32x32">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
