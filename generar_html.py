@@ -525,6 +525,7 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict],
     <a href="#cine-alternativo">Independiente</a>
   </nav>"""
     titulo_trad = "Cine tradicional"
+    bloque_llegar = ""
     if sala:
         direccion = (cines_tradicional[0].get("direccion") if cines_tradicional else "") or ""
         pelis_sala = [p for c in cines_tradicional for p in agrupar_versiones(c.get("peliculas", []))]
@@ -547,6 +548,17 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict],
         else:
             lead = f"Las películas y horarios de {sala} en La Plata para esta semana. Se actualiza cada jueves."
         eyebrow = f"Cine en La Plata · Semana del {rango}"
+        # Las búsquedas de sala ("cinema rocha cartelera", "cinema city")
+        # se repiten todas las semanas: además de la cartelera, la página
+        # dice dónde queda y cómo llegar, igual que las salas de en vivo.
+        if calle:
+            if calle[:1].isdigit():
+                calle = "calle " + calle
+            maps = f"https://www.google.com/maps/search/?api=1&query={quote_plus(calle + ', La Plata')}"
+            tel = f" · Tel. {esc(telefono)}" if telefono else ""
+            bloque_llegar = (
+                f'\n      <p class="venue-social">{esc(sala)} queda en {esc(calle)}, La Plata{tel}. '
+                f'<a href="{esc(maps)}" target="_blank" rel="noopener">Cómo llegar →</a></p>')
         otras = " · ".join(f'<a href="/cine/sala/{slugify(o)}/">{esc(o)}</a>' for o in (otras_salas or []) if o != sala)
         bloque_alt = f"""<section class="card">
       <p class="tag">Otras salas</p>
@@ -596,7 +608,7 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict],
     <section class="hero compact">
       <p class="eyebrow">{esc(eyebrow)}</p>
       <h1>{esc(h1)}</h1>
-      <p class="lead">{esc(lead)}</p>
+      <p class="lead">{esc(lead)}</p>{bloque_llegar}
     </section>
 
     <section class="ad-box sponsor-card">
@@ -619,8 +631,14 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict],
 
     <section class="card">
       <p class="tag">También en MoVeTe</p>
-      <h2>Cartelera en vivo en La Plata</h2>
-      <a href="/en-vivo/">Ver cartelera en vivo →</a>
+      <h2>Más para hacer en La Plata</h2>
+      <ul style="line-height:1.8">
+        <li><a href="/cine/pelis/">Todas las películas en cartel en La Plata →</a></li>
+        <li><a href="/en-vivo/">Teatro, recitales y shows de esta semana →</a></li>
+        <li><a href="/en-vivo/hoy/">Qué hacer hoy en La Plata →</a></li>
+        <li><a href="/en-vivo/fin-de-semana/">Qué hacer este fin de semana →</a></li>
+        <li><a href="/">Agenda cultural de La Plata →</a></li>
+      </ul>
     </section>
 
     <p class="site-notice">La info puede cambiar. Confirmá horarios y disponibilidad con cada sala o espacio; reservá o sacá entradas según corresponda.</p>
