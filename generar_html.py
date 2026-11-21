@@ -473,17 +473,31 @@ def render_schema_cine(cines_tradicional: list[dict], funciones_alternativo: lis
         fecha = str(f.get("fecha", "")).strip()
         hora = str(f.get("hora", "")).strip()
         espacio = datos_espacio(f.get("espacio", ""))
+        titulo = str(f.get("titulo", "")).strip()
         ev = {
             "@type": "ScreeningEvent",
-            "name": f.get("titulo", ""),
+            "name": titulo,
             "location": {
                 "@type": "Place",
                 "name": espacio["nombre"],
                 "address": postal_address(espacio["direccion"]),
             },
+            # Search Console (21/11/2026) marcaba a estas funciones sin
+            # description, organizer, offers ni endDate. Se completa con lo que
+            # sabemos sin inventar: la sala organiza, la función termina ese
+            # día y se avisa en qué sala es. Sin precio ni link: la fuente no
+            # los trae.
+            "eventStatus": "https://schema.org/EventScheduled",
+            "eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
+            "description": f"Función de cine: {titulo} en {espacio['nombre']}, La Plata.",
+            "organizer": {"@type": "Organization", "name": espacio["nombre"],
+                          "url": "https://movete.info/cine/"},
+            "url": "https://movete.info/cine/",
         }
         if fecha:
-            ev["startDate"] = fecha + ("T" + hora if hora else "")
+            # Con la zona horaria de La Plata: sin offset Google la adivina.
+            ev["startDate"] = fecha + (f"T{hora}:00-03:00" if re.match(r"^\d{2}:\d{2}$", hora) else "")
+            ev["endDate"] = fecha
         items.append({"@type": "ListItem", "position": pos, "item": ev})
         pos += 1
     if not items:
