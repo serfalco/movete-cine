@@ -613,6 +613,7 @@ def generar(cines_tradicional: list[dict], funciones_alternativo: list[dict],
       <a href="/cine/" aria-current="page">Cine</a>
       <a href="/cine/pelis/">Pelis</a>
       <a href="/en-vivo/">En vivo</a>
+      <a href="/mapa/">Mapa</a>
     </nav>
   </header>
 

@@ -539,6 +539,7 @@ def render_ficha(ficha: dict, presencia: list[dict], jueves: datetime, anio_actu
       <a href="/cine/">Cine</a>
       <a href="/cine/pelis/" aria-current="page">Pelis</a>
       <a href="/en-vivo/">En vivo</a>
+      <a href="/mapa/">Mapa</a>
     </nav>
   </header>
 
@@ -667,6 +668,7 @@ def render_indice(fichas_meta: list[dict], jueves: datetime, anio_actual: int) -
       <a href="/cine/">Cine</a>
       <a href="/cine/pelis/" aria-current="page">Pelis</a>
       <a href="/en-vivo/">En vivo</a>
+      <a href="/mapa/">Mapa</a>
     </nav>
   </header>
 
